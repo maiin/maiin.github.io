@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>WebPanel Example</title>
+  <script src="webpanels.js" defer></script>
+  <script src="webvariables.js" defer></script>
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      font-family: sans-serif;
+    }
+    web-panels {
+      flex: 1;
+    }
+  </style>
+</head>
+<body>
+      <web-variables id="vars" storage="localStorage" debug></web-variables>
+    <button webvariable="showmainpanel(true)">menuitem</button>
+    
+  <web-panels>
+    <panel mainmobile>I am a menu
+    </panel>
+    <panel main>
+    <div>I am a div</div></panel>
+    <panel>Details</panel>
+  </web-panels>
+</body>
+</html>
