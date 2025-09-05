@@ -1,32 +1,77 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>WebPanel Example</title>
-  <script src="webpanels.js" defer></script>
-  <script src="webvariables.js" defer></script>
-  <style>
-    body {
-      margin: 0;
-      height: 100vh;
-      display: flex;
-      font-family: sans-serif;
-    }
-    web-panels {
-      flex: 1;
-    }
-  </style>
+<meta charset="UTF-8">
+<title>Web Variables and Panels Demo</title>
+<script src="webpanels.js" defer></script>
+<script src="webvariables.js"></script> <!-- your saved web-variables -->
+
+<style>
+  *{box-sizing: border-box;}
+  body { font-family: sans-serif; padding: 20px; }
+  button { margin: 5px 0; border-radius: 100px; padding: 6px 12px; border: 0; background: #007bff; color: #fff; cursor: pointer; }
+  .sidebar{background: #2e2e2e; color: #fff;}
+  panel{
+    padding: 40px;
+  }
+  .explain{
+    background: rgba(255, 255, 255, 0.79);
+    padding: 30px 20px;
+    margin: 50px -20px -20px;
+    border-radius: 10px;
+    color: #777;
+  }
+  .sidebar .explain{
+    background: rgba(255, 255, 255, 0.1);
+    color: #a7a7a7;
+  }
+</style>
+
 </head>
 <body>
-      <web-variables id="vars" storage="localStorage" debug></web-variables>
-    <button webvariable="showmainpanel(true)">menuitem</button>
-    
-  <web-panels>
-    <panel mainmobile>I am a menu
+
+<web-variables id="vars" storage="localStorage"></web-variables>
+
+<web-panels>
+
+    <panel mainmobile>
+      <h3>I am a menu</h3>
+      <button class="button" webvariable="userid('John') showDetails(true)">John (with Details)</button>
+      <button class="button" webvariable="userid('Paul') showDetails(false)">Paul (No details)</button>
+      <button class="button" webvariable="userid('Kumar') showDetails(true)">Kumar (with Details)</button>
+      <button class="button" webvariable="showDetails(false)">Close Details</button>
+      <p class="explain">When we give buttons a custom attribute like: webvariable="userid('John') showDetails(true)". These are quick variable to control things like showing and hiding without huge libraries. </p>
     </panel>
-    <panel main>
-    <div>I am a div</div></panel>
-    <panel>Details</panel>
-  </web-panels>
+
+    <panel main getvariable="userid">
+      <div>
+        <h3>Current User Panel</h3>
+        <p>User ID: <strong id="current-user" style="font-size: 20px;"></strong></p>
+      </div>
+      <p class="explain">Elements with an attribute 'getvariable="userid"', will create another adjacent attribute: data-userid="***value of the userid***".</p>
+    </panel>
+
+    <panel ifvariable="showDetails(true)" class="sidebar">
+      <h3>Details</h3>
+      <p>Details of user: <span id="modal-user"></span></p>
+      <button class="button" webvariable="showDetails(false)">Close Details</button>
+      <p class="explain">We toggle this dark Details panel by giving an element this custom attribute: ifvariable="showDetails(true)" </p>
+    </panel>
+  
+</web-panels>
+
+<script>
+  const vars = document.querySelector("#vars");
+  const currentUserEl = document.getElementById("current-user");
+  const modalUserEl = document.getElementById("modal-user");
+
+  // Update span text whenever userid changes
+  setInterval(() => {
+    const userId = vars.getVariable("userid") ?? '';
+    currentUserEl.textContent = userId;
+    modalUserEl.textContent = userId;
+  }, 50);
+</script>
+
 </body>
 </html>
