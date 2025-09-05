@@ -1,16 +1,175 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1.0">
-  <title>Moreira</title>
-<link href="main.aa339dcbf7d41d93dd7e.css" rel="stylesheet"></head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Premium Animated Card</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #4a00e0 0%, #8e2de2 100%);
+            margin: 0;
+            overflow: hidden;
+        }
 
-<body class="bg-odd">
-  <div id="app">
-    <router-view></router-view>
-  </div>
-<script type="text/javascript" src="main.962681e631b4fa274ced.js"></script></body>
+        .card {
+            width: 300px;
+            height: 533px; /* 9:16 aspect ratio */
+            background: linear-gradient(135deg, #ff2d75 0%, #c71585 100%);
+            border-radius: 20px;
+            padding: 30px;
+            color: white;
+            position: relative;
+            overflow: hidden;
+            transform-style: preserve-3d;
+            perspective: 1000px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4);
+            cursor: pointer;
+            transition: all 0.3s ease-out;
+        }
 
+        .card-content {
+            position: relative;
+            z-index: 10;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .card-glare {
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle at center, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0) 70%);
+            opacity: 0.3;
+            z-index: 1;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .card-chip {
+            font-size: 28px;
+            letter-spacing: 3px;
+            margin-bottom: 20px;
+        }
+
+        .card-number {
+            font-family: 'Courier New', monospace;
+            font-size: 18px;
+            letter-spacing: 2px;
+            margin: 20px 0;
+        }
+
+        .card-footer {
+            display: flex;
+            justify-content: space-between;
+            margin-top: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="card-glare"></div>
+        <div class="card-content">
+            <div>
+                <div class="card-chip">IO</div>
+                <div class="card-number">PHUSION 9</div>
+            </div>
+            <div class="card-footer">
+                <div>
+                    <div>MOIIN.IO</div>
+                    <div>o_0</div>
+                </div>
+                <div>
+                    <div>I &nbsp; IOIII I</div>
+                    <div>UX</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const card = document.querySelector('.card');
+        const glare = card.querySelector('.card-glare');
+        const content = card.querySelector('.card-content');
+        
+        // Animation parameters
+        const settings = {
+            tiltRange: 10,          // Increased tilt range
+            rotationSpeed: 0.01,    // Faster rotation
+            glareMovement: 0.03,    // Faster glare movement
+            floatIntensity: 0.8,    // More pronounced float
+            hoverBoost: 1.8        // Multiplier when hovered
+        };
+        
+        let time = 0;
+        let isHovered = false;
+        let currentTiltRange = settings.tiltRange;
+        
+        function animateCard() {
+            time += settings.rotationSpeed * (isHovered ? settings.hoverBoost : 1);
+            
+            // Calculate automatic tilt angles
+            const angleX = Math.sin(time * 1.1) * currentTiltRange;
+            const angleY = Math.cos(time * 0.9) * currentTiltRange;
+            
+            // Apply 3D transform with scale effect when hovered
+            card.style.transform = `
+                perspective(1000px)
+                rotateX(${angleX}deg)
+                rotateY(${angleY}deg)
+                scale(${isHovered ? 1.05 : 1})
+            `;
+            
+            // Lower shadow position (moved down with +15px Y offset)
+            card.style.boxShadow = `
+                ${angleY * 4}px 
+                ${35 + angleX * 4}px 
+                80px 
+                rgba(0, 0, 0, ${isHovered ? 0.3 : 0.25})
+            `;
+            
+            // Auto-moving glare
+            const glareX = 50 + Math.sin(time * 1.3) * 40;
+            const glareY = 50 + Math.cos(time * 1.2) * 40;
+            
+            glare.style.background = `
+                radial-gradient(
+                    circle at ${glareX}% ${glareY}%, 
+                    rgba(255, 255, 255, ${isHovered ? 0.9 : 0.7}) 0%, 
+                    rgba(255, 255, 255, 0) 70%
+                )
+            `;
+            
+            // Floating effect
+            const floatOffset = Math.sin(time * 0.7) * settings.floatIntensity;
+            card.style.marginTop = `${floatOffset}px`;
+            
+            requestAnimationFrame(animateCard);
+        }
+        
+        // Cool hover effect
+        card.addEventListener('mouseenter', () => {
+            isHovered = true;
+            glare.style.opacity = '0.6';
+            currentTiltRange = settings.tiltRange * 1.5;
+        });
+        
+        card.addEventListener('mouseleave', () => {
+            isHovered = false;
+            glare.style.opacity = '0.3';
+            currentTiltRange = settings.tiltRange;
+        });
+        
+        // Start animation
+        animateCard();
+    </script>
+</body>
 </html>
