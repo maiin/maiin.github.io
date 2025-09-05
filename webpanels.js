@@ -16,7 +16,6 @@ class WebPanels extends HTMLElement {
         border-radius: 20px;
         background-color: #ededed;
         flex: 0 0 auto;
-        display: none;
         width: 300px;
       }
       ::slotted(panel[main]) {
@@ -24,6 +23,9 @@ class WebPanels extends HTMLElement {
       }
       ::slotted(panel[visible]) {
         display: block;
+      }
+      ::slotted(panel[first]) {
+        order: -1;
       }
       @media (min-width: 768px) {
         ::slotted(panel) {
@@ -39,9 +41,6 @@ class WebPanels extends HTMLElement {
         }
         ::slotted(panel) {
           width: 100%;
-        }
-        ::slotted(panel[mainmobile]) {
-          display: block;
         }
       }
     `;
