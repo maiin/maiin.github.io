@@ -235,3 +235,46 @@ function showToast(message, options = {}) {
   document.body.appendChild(toast);
   return toast;
 }
+
+// Add this to the end of imtoast.js
+// Function to initialize toast buttons
+function initToastButtons() {
+  document.addEventListener('click', function(e) {
+    // Check if clicked element or its parent has toast attributes
+    let button = e.target;
+    
+    // Handle icon buttons or other elements inside the button
+    while (button && !button.hasAttribute('data-toast-message') && button !== document.body) {
+      button = button.parentElement;
+    }
+    
+    if (button && button.hasAttribute('data-toast-message')) {
+      e.preventDefault();
+      
+      const message = button.getAttribute('data-toast-message');
+      const options = {
+        duration: button.getAttribute('data-toast-duration') ? parseInt(button.getAttribute('data-toast-duration')) : undefined,
+        variant: button.getAttribute('data-toast-variant') || undefined,
+        position: button.getAttribute('data-toast-position') || undefined,
+        closable: button.hasAttribute('data-toast-closable'),
+        pauseOnHover: button.hasAttribute('data-toast-pause-on-hover')
+      };
+      
+      // Clean up undefined options
+      Object.keys(options).forEach(key => {
+        if (options[key] === undefined) {
+          delete options[key];
+        }
+      });
+      
+      showToast(message, options);
+    }
+  });
+}
+
+// Initialize on DOM content loaded
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initToastButtons);
+} else {
+  initToastButtons();
+}
