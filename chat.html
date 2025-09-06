@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Decision Tree Chat Assistant</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+        }
+
+        body {
+            background-color: #f5f5f7;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-weight: 600;
+            color: #000;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        .container {
+            display: flex;
+            gap: 20px;
+            flex: 1;
+            min-height: 0;
+        }
+
+        .chat-container {
+            flex: 1;
+            background: white;
+            border-radius: 18px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 14px 18px;
+            border-radius: 20px;
+            line-height: 1.4;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .bot-message {
+            align-self: flex-start;
+            background: #f2f2f7;
+            border-bottom-left-radius: 4px;
+        }
+
+        .user-message {
+            align-self: flex-end;
+            background: #007AFF;
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .options-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .option-button {
+            background: rgba(0, 122, 255, 0.1);
+            border: 1px solid #007AFF;
+            color: #007AFF;
+            padding: 10px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+            text-align: left;
+        }
+
+        .option-button:hover {
+            background: #007AFF;
+            color: white;
+        }
+
+        .navigation-button {
+            background: rgba(108, 108, 112, 0.1);
+            border: 1px solid #8e8e93;
+            color: #8e8e93;
+            padding: 8px 14px;
+            border-radius: 16px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-top: 10px;
+            transition: all 0.2s;
+        }
+
+        .navigation-button:hover {
+            background: #8e8e93;
+            color: white;
+        }
+
+        .input-container {
+            padding: 16px;
+            border-top: 1px solid #e5e5ea;
+            display: flex;
+            gap: 10px;
+        }
+
+        input {
+            flex: 1;
+            padding: 14px;
+            border: 1px solid #e5e5ea;
+            border-radius: 22px;
+            font-size: 16px;
+            outline: none;
+        }
+
+        input:focus {
+            border-color: #007AFF;
+        }
+
+        button {
+            background: #007AFF;
+            color: white;
+            border: none;
+            padding: 0 24px;
+            border-radius: 22px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        button:disabled {
+            background: #e5e5ea;
+            color: #8e8e93;
+            cursor: not-allowed;
+        }
+
+        .json-editor {
+            width: 400px;
+            background: white;
+            border-radius: 18px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .json-editor h2 {
+            margin-bottom: 16px;
+            font-weight: 600;
+        }
+
+        textarea {
+            flex: 1;
+            padding: 16px;
+            border: 1px solid #e5e5ea;
+            border-radius: 12px;
+            font-family: monospace;
+            font-size: 14px;
+            resize: none;
+            outline: none;
+        }
+
+        textarea:focus {
+            border-color: #007AFF;
+        }
+
+        .json-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        .json-buttons button {
+            flex: 1;
+        }
+
+        #resetBtn {
+            background: #ff3b30;
+        }
+
+        .typing-indicator {
+            align-self: flex-start;
+            background: #f2f2f7;
+            padding: 14px 18px;
+            border-radius: 20px;
+            border-bottom-left-radius: 4px;
+            display: flex;
+            gap: 4px;
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background: #8e8e93;
+            border-radius: 50%;
+            animation: typingAnimation 1.4s infinite;
+        }
+
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typingAnimation {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-4px); }
+        }
+
+        @media (max-width: 900px) {
+            .container {
+                flex-direction: column;
+            }
+            
+            .json-editor {
+                width: 100%;
+                height: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Decision Tree Chat Assistant</h1>
+        <p class="subtitle">Interactive guidance through your website</p>
+    </header>
+
+    <div class="container">
+        <div class="chat-container">
+            <div class="chat-messages" id="chatMessages">
+                <!-- Messages will be added here dynamically -->
+            </div>
+            <div class="input-container">
+                <input type="text" id="userInput" placeholder="Type your response..." disabled>
+                <button id="sendBtn" disabled>Send</button>
+            </div>
+        </div>
+
+        <div class="json-editor">
+            <h2>Decision Tree JSON</h2>
+            <textarea id="jsonInput" placeholder="Enter your JSON decision tree here...">
+{
+  "botName": "GuideBot",
+  "initialMessages": [
+    "Hi, I'm GuideBot",
+    "I'm here to help you navigate our website",
+    "How can I assist you today?"
+  ],
+  "options": [
+    {
+      "id": "services",
+      "text": "I need information about your services",
+      "response": "Sure! Let me tell you about our services.",
+      "followUp": {
+        "message": "Which service are you interested in?",
+        "options": [
+          {
+            "id": "webdev",
+            "text": "Web Development",
+            "response": "We create modern, responsive websites using the latest technologies.",
+            "followUp": {
+              "message": "Would you like to see examples or know about pricing?",
+              "options": [
+                {
+                  "id": "examples",
+                  "text": "Show me examples",
+                  "response": "Here are some of our recent web development projects: [Project 1], [Project 2], [Project 3]"
+                },
+                {
+                  "id": "pricing",
+                  "text": "Tell me about pricing",
+                  "response": "Our web development projects start at $5,000, depending on complexity and features."
+                },
+                {
+                  "id": "back-to-services",
+                  "text": "← Back to services",
+                  "action": "navigate",
+                  "target": "services"
+                }
+              ]
+            }
+          },
+          {
+            "id": "content",
+            "text": "Content Creation",
+            "response": "Our team produces engaging content for various platforms and audiences."
+          },
+          {
+            "id": "marketing",
+            "text": "Digital Marketing",
+            "response": "We help businesses grow through targeted digital marketing strategies."
+          },
+          {
+            "id": "back-to-main",
+            "text": "← Back to main menu",
+            "action": "navigate",
+            "target": "root"
+          }
+        ]
+      }
+    },
+    {
+      "id": "contact",
+      "text": "I want to contact your team",
+      "response": "Great! I can help you get in touch with our team.",
+      "followUp": {
+        "message": "Please provide your email address so we can contact you:",
+        "input": "email"
+      }
+    },
+    {
+      "id": "explore",
+      "text": "I'm just exploring",
+      "response": "No problem! Feel free to explore and let me know if you have any questions."
+    }
+  ]
+}</textarea>
+            <div class="json-buttons">
+                <button id="loadJsonBtn">Load Decision Tree</button>
+                <button id="resetBtn">Reset Chat</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const chatMessages = document.getElementById('chatMessages');
+            const userInput = document.getElementById('userInput');
+            const sendBtn = document.getElementById('sendBtn');
+            const jsonInput = document.getElementById('jsonInput');
+            const loadJsonBtn = document.getElementById('loadJsonBtn');
+            const resetBtn = document.getElementById('resetBtn');
+            
+            let decisionTree = null;
+            let currentOptions = null;
+            let waitingForInput = false;
+            let inputType = 'text';
+            let nodeHistory = [];
+
+            // Initialize with default JSON
+            loadDecisionTree();
+
+            // Load JSON button event
+            loadJsonBtn.addEventListener('click', loadDecisionTree);
+            
+            // Reset chat button event
+            resetBtn.addEventListener('click', resetChat);
+            
+            // Send button event
+            sendBtn.addEventListener('click', handleUserResponse);
+            
+            // Allow pressing Enter to send message
+            userInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter' && !sendBtn.disabled) {
+                    handleUserResponse();
+                }
+            });
+
+            function loadDecisionTree() {
+                try {
+                    decisionTree = JSON.parse(jsonInput.value);
+                    resetChat();
+                } catch (e) {
+                    alert('Invalid JSON format. Please check your decision tree.');
+                    console.error(e);
+                }
+            }
+
+            function resetChat() {
+                chatMessages.innerHTML = '';
+                userInput.value = '';
+                userInput.disabled = true;
+                sendBtn.disabled = true;
+                waitingForInput = false;
+                nodeHistory = [];
+                
+                if (decisionTree) {
+                    // Add initial bot messages
+                    simulateTyping(decisionTree.initialMessages, 0);
+                }
+            }
+
+            function simulateTyping(messages, index) {
+                if (index >= messages.length) {
+                    // After all initial messages, show options
+                    showOptions(decisionTree.options, "root");
+                    return;
+                }
+                
+                // Show typing indicator
+                const typingIndicator = document.createElement('div');
+                typingIndicator.className = 'typing-indicator';
+                typingIndicator.innerHTML = `
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                `;
+                chatMessages.appendChild(typingIndicator);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+                
+                // Simulate typing delay
+                setTimeout(() => {
+                    chatMessages.removeChild(typingIndicator);
+                    addMessage(messages[index], 'bot');
+                    
+                    // Show next message after a delay
+                    setTimeout(() => simulateTyping(messages, index + 1), 500);
+                }, 1500);
+            }
+
+            function addMessage(text, sender) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${sender}-message`;
+                messageDiv.textContent = text;
+                chatMessages.appendChild(messageDiv);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+
+            function showOptions(options, nodeId) {
+                currentOptions = options;
+                nodeHistory.push(nodeId);
+                
+                const optionsContainer = document.createElement('div');
+                optionsContainer.className = 'options-container';
+                
+                options.forEach(option => {
+                    const button = document.createElement('button');
+                    button.className = 'option-button';
+                    button.textContent = option.text;
+                    button.dataset.optionId = option.id;
+                    button.addEventListener('click', () => selectOption(option));
+                    optionsContainer.appendChild(button);
+                });
+                
+                // Add back button if we're not at the root level
+                if (nodeHistory.length > 1) {
+                    const backButton = document.createElement('button');
+                    backButton.className = 'navigation-button';
+                    backButton.textContent = '← Back';
+                    backButton.addEventListener('click', goBack);
+                    optionsContainer.appendChild(backButton);
+                }
+                
+                chatMessages.appendChild(optionsContainer);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+
+            function selectOption(option) {
+                // Remove option buttons
+                const optionsContainer = document.querySelector('.options-container');
+                if (optionsContainer) {
+                    chatMessages.removeChild(optionsContainer);
+                }
+                
+                // Add user's selection as a message
+                addMessage(option.text, 'user');
+                
+                // Handle navigation actions
+                if (option.action === 'navigate') {
+                    setTimeout(() => navigateToNode(option.target), 800);
+                    return;
+                }
+                
+                // Add bot's response after a short delay
+                setTimeout(() => {
+                    if (option.response) {
+                        addMessage(option.response, 'bot');
+                    }
+                    
+                    // Check if there's a follow-up
+                    if (option.followUp) {
+                        setTimeout(() => {
+                            if (option.followUp.input) {
+                                // Request user input
+                                inputType = option.followUp.input;
+                                waitingForInput = true;
+                                addMessage(option.followUp.message, 'bot');
+                                userInput.disabled = false;
+                                sendBtn.disabled = false;
+                                userInput.focus();
+                                
+                                // Set input placeholder based on type
+                                if (inputType === 'email') {
+                                    userInput.placeholder = 'Enter your email...';
+                                    userInput.type = 'email';
+                                } else {
+                                    userInput.placeholder = 'Type your response...';
+                                    userInput.type = 'text';
+                                }
+                            } else if (option.followUp.options) {
+                                // Show follow-up options
+                                addMessage(option.followUp.message, 'bot');
+                                showOptions(option.followUp.options, option.id);
+                            }
+                        }, 800);
+                    }
+                }, 800);
+            }
+
+            function navigateToNode(nodeId) {
+                if (nodeId === "root") {
+                    // Go back to the main menu
+                    addMessage("What else can I help you with?", 'bot');
+                    showOptions(decisionTree.options, "root");
+                } else {
+                    // Find the node by ID
+                    const node = findNodeById(decisionTree.options, nodeId);
+                    if (node) {
+                        addMessage(node.response, 'bot');
+                        if (node.followUp && node.followUp.options) {
+                            setTimeout(() => {
+                                addMessage(node.followUp.message, 'bot');
+                                showOptions(node.followUp.options, nodeId);
+                            }, 800);
+                        }
+                    }
+                }
+            }
+
+            function findNodeById(options, id) {
+                for (const option of options) {
+                    if (option.id === id) {
+                        return option;
+                    }
+                    if (option.followUp && option.followUp.options) {
+                        const found = findNodeById(option.followUp.options, id);
+                        if (found) return found;
+                    }
+                }
+                return null;
+            }
+
+            function goBack() {
+                // Remove current options
+                const optionsContainer = document.querySelector('.options-container');
+                if (optionsContainer) {
+                    chatMessages.removeChild(optionsContainer);
+                }
+                
+                // Go back to previous node
+                nodeHistory.pop(); // Remove current node
+                const previousNodeId = nodeHistory[nodeHistory.length - 1];
+                
+                if (previousNodeId === "root") {
+                    addMessage("What else can I help you with?", 'bot');
+                    showOptions(decisionTree.options, "root");
+                } else {
+                    const previousNode = findNodeById(decisionTree.options, previousNodeId);
+                    if (previousNode) {
+                        addMessage(previousNode.response, 'bot');
+                        if (previousNode.followUp && previousNode.followUp.options) {
+                            setTimeout(() => {
+                                addMessage(previousNode.followUp.message, 'bot');
+                                showOptions(previousNode.followUp.options, previousNodeId);
+                            }, 800);
+                        }
+                    }
+                }
+            }
+
+            function handleUserResponse() {
+                if (!waitingForInput || !userInput.value.trim()) return;
+                
+                // Add user's input as a message
+                addMessage(userInput.value, 'user');
+                
+                // Clear input and disable it
+                const userResponse = userInput.value;
+                userInput.value = '';
+                userInput.disabled = true;
+                sendBtn.disabled = true;
+                waitingForInput = false;
+                
+                // Validate email if input type is email
+                if (inputType === 'email') {
+                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                    if (!emailRegex.test(userResponse)) {
+                        setTimeout(() => {
+                            addMessage("That doesn't look like a valid email. Please try again:", 'bot');
+                            userInput.disabled = false;
+                            sendBtn.disabled = false;
+                            waitingForInput = true;
+                            userInput.focus();
+                        }, 800);
+                        return;
+                    }
+                    
+                    // If email is valid, show confirmation
+                    setTimeout(() => {
+                        addMessage("Thank you! We'll contact you at " + userResponse, 'bot');
+                        setTimeout(() => {
+                            addMessage("Is there anything else I can help you with?", 'bot');
+                            showOptions(decisionTree.options, "root");
+                        }, 1000);
+                    }, 800);
+                }
+            }
+        });
+    </script>
+</body>
+</html>
