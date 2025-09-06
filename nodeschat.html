@@ -3,20 +3,53 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dynamic Bot Flow</title>
+  <title>Bot Flow Editor</title>
   <style>
     body {
       margin: 0;
       height: 100vh;
-      background: #fdfdfd;
+      display: flex;
       font-family: Arial, sans-serif;
       overflow: hidden;
     }
 
     .canvas {
       position: relative;
+      flex: 1;
+      background: #fdfdfd;
+    }
+
+    .sidebar {
+      width: 280px;
+      background: #fff;
+      border-left: 1px solid #ddd;
+      padding: 20px;
+      box-shadow: -2px 0 5px rgba(0,0,0,0.05);
+      display: none;
+      flex-shrink: 0;
+    }
+
+    .sidebar h2 {
+      font-size: 18px;
+      margin-top: 0;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 5px;
+    }
+
+    .form-group input {
       width: 100%;
-      height: 100%;
+      padding: 8px;
+      font-size: 14px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
     }
 
     .node {
@@ -41,15 +74,7 @@
       margin-right: 8px;
     }
 
-    /* Colors */
-    .start { background: #455a64; }
-    .assist { background: #005eff; }
-    .anna { background: #fbc02d; color: #000; }
-    .john { background: #ff5722; }
-    .marie { background: #42a5f5; }
-    .show-products { background: #43a047; }
-    .flow { background: #90caf9; color: #000; }
-    .ticket { background: #66bb6a; }
+    .default { background: #005eff; }
 
     svg {
       position: absolute;
@@ -65,40 +90,54 @@
       stroke-width: 2;
       fill: none;
     }
+
+    .btn {
+      margin-top: 20px;
+      display: block;
+      width: 100%;
+      padding: 10px;
+      background: #005eff;
+      color: #fff;
+      text-align: center;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .btn.secondary {
+      background: #888;
+      margin-top: 10px;
+    }
+
+    .connect-mode {
+      background: #fbc02d;
+      color: #000;
+    }
   </style>
 </head>
 <body>
   <div class="canvas" id="canvas">
-    <!-- SVG connectors -->
     <svg id="connections"></svg>
+    <!-- Example starting node -->
+    <div id="start" class="node default" style="left:100px;top:200px;">Start Node</div>
+  </div>
 
-    <!-- Nodes -->
-    <div id="start" class="node start" style="left:100px;top:300px;">🏠 Start point</div>
-    <div id="assist" class="node assist" style="left:280px;top:300px;">🤖 AI Assist</div>
-    <div id="anna" class="node anna" style="left:280px;top:180px;">
-      <img src="https://via.placeholder.com/22" alt="Anna"> Anna
+  <div class="sidebar" id="sidebar">
+    <h2>Edit Node</h2>
+    <div class="form-group">
+      <label for="nodeTitle">Title</label>
+      <input type="text" id="nodeTitle">
     </div>
-    <div id="john" class="node john" style="left:280px;top:420px;">
-      <img src="https://via.placeholder.com/22" alt="John"> John
-    </div>
-    <div id="showProducts" class="node show-products" style="left:540px;top:140px;">🛍 Show products</div>
-    <div id="marie" class="node marie" style="left:720px;top:140px;">
-      <img src="https://via.placeholder.com/22" alt="Marie"> Marie
-    </div>
-    <div id="flow" class="node flow" style="left:540px;top:260px;">🔗 Flow</div>
-    <div id="ticket" class="node ticket" style="left:540px;top:380px;">📩 Create ticket</div>
+    <button class="btn" id="addNode">➕ Add Node</button>
+    <button class="btn secondary" id="toggleConnect">🔗 Connect Mode</button>
   </div>
 
   <script>
-    const connections = [
-      { from: "start", to: "assist" },
-      { from: "assist", to: "anna" },
-      { from: "assist", to: "john" },
-      { from: "anna", to: "showProducts" },
-      { from: "showProducts", to: "marie" },
-      { from: "assist", to: "flow" },
-      { from: "assist", to: "ticket" }
-    ];
+    const connections = [];
+    let selectedNode = null;
+    let connectMode = false;
+    let firstNode = null;
 
     function updateConnections() {
       const svg = document.getElementById("connections");
@@ -107,6 +146,7 @@
       connections.forEach(conn => {
         const fromEl = document.getElementById(conn.from);
         const toEl = document.getElementById(conn.to);
+        if (!fromEl || !toEl) return;
 
         const fromRect = fromEl.getBoundingClientRect();
         const toRect = toEl.getBoundingClientRect();
@@ -126,8 +166,9 @@
     }
 
     // Make nodes draggable
-    document.querySelectorAll(".node").forEach(node => {
+    function makeDraggable(node) {
       node.addEventListener("mousedown", e => {
+        if (connectMode) return; // Disable drag in connect mode
         let shiftX = e.clientX - node.getBoundingClientRect().left;
         let shiftY = e.clientY - node.getBoundingClientRect().top;
 
@@ -150,10 +191,72 @@
       });
 
       node.ondragstart = () => false;
+
+      // Click to edit / connect
+      node.addEventListener("click", e => {
+        e.stopPropagation();
+
+        if (connectMode) {
+          if (!firstNode) {
+            firstNode = node;
+            node.style.outline = "2px dashed orange";
+          } else if (firstNode !== node) {
+            connections.push({ from: firstNode.id, to: node.id });
+            firstNode.style.outline = "none";
+            firstNode = null;
+            updateConnections();
+          }
+          return;
+        }
+
+        // Normal edit mode
+        selectedNode = node;
+        document.getElementById("sidebar").style.display = "block";
+        document.getElementById("nodeTitle").value = node.textContent;
+      });
+    }
+
+    // Init existing nodes
+    document.querySelectorAll(".node").forEach(makeDraggable);
+
+    // Update title
+    document.getElementById("nodeTitle").addEventListener("input", e => {
+      if (selectedNode) {
+        selectedNode.textContent = e.target.value;
+      }
+    });
+
+    // Add new node
+    document.getElementById("addNode").addEventListener("click", () => {
+      const id = "node" + Date.now();
+      const newNode = document.createElement("div");
+      newNode.id = id;
+      newNode.className = "node default";
+      newNode.style.left = "200px";
+      newNode.style.top = "200px";
+      newNode.textContent = "New Node";
+      document.getElementById("canvas").appendChild(newNode);
+      makeDraggable(newNode);
+    });
+
+    // Toggle connect mode
+    document.getElementById("toggleConnect").addEventListener("click", e => {
+      connectMode = !connectMode;
+      e.target.classList.toggle("connect-mode", connectMode);
+      firstNode = null;
+      document.querySelectorAll(".node").forEach(n => (n.style.outline = "none"));
     });
 
     window.addEventListener("resize", updateConnections);
     window.addEventListener("load", updateConnections);
+
+    // Hide sidebar if clicking empty space
+    document.getElementById("canvas").addEventListener("click", () => {
+      if (!connectMode) {
+        document.getElementById("sidebar").style.display = "none";
+        selectedNode = null;
+      }
+    });
   </script>
 </body>
 </html>
