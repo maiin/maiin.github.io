@@ -3,40 +3,38 @@
 <head>
   <meta charset="UTF-8">
   <title>WebPanel Example</title>
-  <script src="webpanels.js" defer></script>
+  <script src="webpanels2.js" defer></script>
   <style>
     *{box-sizing: border-box;}
     body {
       margin: 0;
       height: 100vh;
-      display: flex;
       font-family: sans-serif;
-      padding: 20px;
-    }
-    web-panels {
-      flex: 1;
-    }
-    web-panels{
-    gap: 20px;
     }
     div{
     background: black;
     color: #ffffff;
     padding: 20px;
     border-radius: 20px;
+    height: 200px;
     }
   </style>
 </head>
 <body>
   <web-panels>
+    <panel top sticky>I am navigasean
+    </panel>
+
     <panel main>
       <div>I am a div</div>
     </panel>
 
-    <panel first>I am a menu
+    <panel left>I am left
     </panel>
 
-    <panel>Details</panel>
+    <panel right>Details</panel>
+
+    <panel bottom>footer</panel>
   </web-panels>
 </body>
 </html>
