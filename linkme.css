@@ -1,0 +1,112 @@
+:root {
+  --tp-dark: rgba(0,0,0,.05);
+  --tp-light: rgba(255,255,255,.08);
+  --color-accent: #ea1f62;
+  --color-accent-text: #ffffff;
+  --color-accent-hover: #0f6178;
+  --color-success: #00bb4b;
+  --color-error: #f3005d;
+  --color-text: #000000;
+  --color-text-invert: #ffffff;
+  --font: sans-serif;
+  --font-size: 16px;
+  --radius: 100px; /* 100px, 15px, 0px are popular values */
+  --transition: all .15s ease-in-out;
+  --toucharea: 40px;
+  --gap: 10px;
+}
+
+*{box-sizing: border-box;}
+
+a{
+    color: var(--color-accent);
+    text-decoration: none;
+    font-family: var(--font);  
+}
+
+.no-bg{
+    background: transparent !important;
+}
+
+.button{
+    color: var(--color-text);
+    font-family: var(--font);  
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    background: var(--tp-dark);
+    border: 0;
+    font-size: var(--font-size);
+    padding: 5px 20px;
+    border-radius: var(--radius);
+    min-height: var(--toucharea);
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.button:hover, .button:active{transform: translateY(2px);}
+
+.button_break{white-space: break-spaces}
+.button_lg{padding: 15px 60px;}
+  
+.button.focus, .button:focus {
+    box-shadow: 0 0 0 0.2rem rgba(1,172,127, 0.3) !important;
+}
+
+.button.accent,
+.button.accent:active {
+  border: 0;
+  background: var(--color-accent);
+  color: var(--color-accent-text);
+  box-shadow: 0 17px 50px 0 rgba(0, 0, 0, 0.1);
+}
+
+.button.accent:hover,
+.button.accent:active {
+  background: var(--color-accent-hover);
+  box-shadow: 0 5px 20px 0 rgba(0, 0, 0, 0.1);
+  color: var(--color-accent-text);
+}
+
+.button.icon{
+  padding: 10px 11px;
+  width: var(--toucharea);
+  height: var(--toucharea);
+  background-size: cover;
+}
+.button.icon:hover{
+    background-size: cover;
+}
+
+.invert .button:not(.accent){
+    background: var(--tp-light);
+    color: var(--text-invert);
+}
+
+.button:disabled,
+.button[disabled]{
+  cursor: default;
+  opacity: .4;
+}
+
+.buttons{
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: var(--gap);
+}
+
+.buttons.set{
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    background: var(--tp-dark);
+    border-radius: var(--radius);
+    gap: 2px;
+    padding: 2px;
+}
+
+.buttons li{
+    list-style: none;
+    margin: 0
+}

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WebPanel Example</title>
+  <script src="webpanels.js" defer></script>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link rel="stylesheet" href="linkme.css" type="text/css">
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+    }
+.invert{
+background: #333;
+color: #fff
+}
+hr{border: 0; height: 1px; background: silver; margin: 50px 0;}
+  </style>
+</head>
+<body>
+  <web-panels>
+    <panel top sticky>
+      <div class="buttons set">
+          <button class="button icon accent"><span class="material-icons">favorite_outline</span></button>
+          <button class="button icon"><span class="material-icons">code</span></button>
+          <button class="button icon"><span class="material-icons">close</span></button>
+      </div>
+    </panel>
+
+    <panel main>
+      <div class="buttons">
+          <button class="button icon"><span class="material-icons">favorite_outline</span></button>
+          <button class="button icon"><span class="material-icons">code</span></button>
+          <button class="button icon"><span class="material-icons">close</span></button>
+      </div>
+      <hr />
+      <a class="button" href="#">Link me</a>
+      <a href="#" class="button no-bg">Link me</a>
+      <button class="button">Click me</button>
+      <hr />
+      <a href="#" class="button accent">Link me</a>
+      <a href="#" class="button accent">Link me</a>
+      <button class="button accent" disabled>Click me</button>
+      <hr />
+      <a href="#" class="button icon"><span class="material-icons">close</span></a>
+      <a href="#" class="button icon accent"><span class="material-icons">code</span></a>
+      <button class="button icon"><span class="material-icons">favorite_outline</span></button>
+    </panel>
+
+    <panel right class="invert">
+      <a href="https://moiin.io">Link me</a>
+      <hr />
+      <a class="button" href="#">Link me</a>
+      <a href="#" class="button no-bg">Link me</a>
+      <button class="button">Click me</button>
+      <hr />
+      <a href="#" class="button accent">Link me</a>
+      <a href="#" class="button accent">Link me</a>
+      <button class="button accent">Click me</button>
+      <hr />
+      <a href="#" class="button icon"><span class="material-icons">close</span></a>
+      <a href="#" class="button icon accent"><span class="material-icons">code</span></a>
+      <button class="button icon"><span class="material-icons">favorite_outline</span></button>
+    </panel>
+  </web-panels>
+</body>
+</html>
