@@ -31,7 +31,7 @@
 
 <web-panels>
 
-    <panel mainmobile>
+    <panel left>
       <h3>I am a menu</h3>
       <button class="button" webvariable="userid('John') showDetails(true)">John (with Details)</button>
       <button class="button" webvariable="userid('Paul') showDetails(false)">Paul (No details)</button>
@@ -48,7 +48,7 @@
       <p class="explain">Elements with an attribute 'getvariable="userid"', will create another adjacent attribute: data-userid="***value of the userid***".</p>
     </panel>
 
-    <panel ifvariable="showDetails(true)" class="sidebar">
+    <panel right ifvariable="showDetails(true)" class="sidebar">
       <h3>Details</h3>
       <p>Details of user: <span id="modal-user"></span></p>
       <button class="button" webvariable="showDetails(false)">Close Details</button>
