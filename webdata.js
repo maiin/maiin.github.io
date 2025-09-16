@@ -1,6 +1,6 @@
 class WebData extends HTMLElement {
             static get observedAttributes() {
-                return ['get', 'itemname', 'loop'];
+                return ['get', 'post', 'put', 'patch', 'delete', 'data', 'save-token', 'use-token', 'token-path', 'headers'];
             }
             
             constructor() {
@@ -8,77 +8,184 @@ class WebData extends HTMLElement {
                 this._data = null;
                 this._loading = false;
                 this._error = null;
+                this._response = null;
                 this.attachShadow({ mode: 'open' });
             }
             
             connectedCallback() {
-                // Store the template from the light DOM
-                this._template = this.innerHTML;
-                // Clear the light DOM to avoid showing {{}} expressions
-                this.innerHTML = '';
-                
                 this.render();
-                this.fetchData();
+                
+                // Set up trigger buttons
+                const triggerButtons = this.querySelectorAll('[trigger]');
+                triggerButtons.forEach(button => {
+                    button.addEventListener('click', () => {
+                        const method = button.getAttribute('trigger').toUpperCase();
+                        this.sendRequest(method);
+                    });
+                });
             }
             
-            attributeChangedCallback(name, oldValue, newValue) {
-                if (name === 'get' && this.hasAttribute('auto')) {
-                    this.fetchData();
+            async sendRequest(method) {
+                let url;
+                let data;
+                
+                // Determine URL based on method
+                switch(method) {
+                    case 'GET': url = this.getAttribute('get'); break;
+                    case 'POST': url = this.getAttribute('post'); break;
+                    case 'PUT': url = this.getAttribute('put'); break;
+                    case 'PATCH': url = this.getAttribute('patch'); break;
+                    case 'DELETE': url = this.getAttribute('delete'); break;
+                    default: 
+                        this._error = 'Invalid method';
+                        this.render();
+                        return;
                 }
-            }
-            
-            async fetchData() {
-                const url = this.getAttribute('get');
+                
                 if (!url) {
-                    this._error = 'No URL specified';
-                    this.dispatchEvent(new CustomEvent('data-error', { detail: this._error }));
+                    this._error = 'No URL specified for method: ' + method;
+                    this.render();
                     return;
+                }
+                
+                // Prepare data based on data attribute
+                const dataAttr = this.getAttribute('data');
+                if (dataAttr === 'auto') {
+                    // Collect data from form inputs
+                    data = this.collectFormData();
+                } else if (dataAttr) {
+                    try {
+                        // Parse JSON data
+                        data = JSON.parse(dataAttr);
+                    } catch (e) {
+                        this._error = 'Invalid JSON data: ' + e.message;
+                        this.render();
+                        return;
+                    }
+                }
+                
+                // Prepare headers
+                const headers = {};
+                
+                // Add content type for methods with body
+                if (['POST', 'PUT', 'PATCH'].includes(method) && data) {
+                    headers['Content-Type'] = 'application/json';
+                }
+                
+                // Add authorization token if specified
+                const useToken = this.getAttribute('use-token');
+                if (useToken) {
+                    const token = this.getToken(useToken);
+                    if (token) {
+                        headers['Authorization'] = `Bearer ${token}`;
+                    }
+                }
+                
+                // Add custom headers if specified
+                const headersAttr = this.getAttribute('headers');
+                if (headersAttr) {
+                    try {
+                        const customHeaders = JSON.parse(headersAttr);
+                        Object.assign(headers, customHeaders);
+                    } catch (e) {
+                        console.error('Failed to parse headers', e);
+                    }
                 }
                 
                 this._loading = true;
                 this._error = null;
-                this.dispatchEvent(new CustomEvent('data-loading'));
+                this.dispatchEvent(new CustomEvent('api-loading', { detail: { url, method } }));
                 this.render();
                 
                 try {
-                    const response = await fetch(url);
+                    const options = {
+                        method,
+                        headers
+                    };
+                    
+                    // Add body for methods that need it
+                    if (['POST', 'PUT', 'PATCH'].includes(method) && data) {
+                        options.body = JSON.stringify(data);
+                    }
+                    
+                    const response = await fetch(url, options);
+                    
                     if (!response.ok) {
                         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                     }
                     
-                    const data = await response.json();
-                    this._data = data;
-                    this._loading = false;
+                    // Try to parse JSON response
+                    try {
+                        this._response = await response.json();
+                    } catch (e) {
+                        this._response = { status: response.status, statusText: response.statusText };
+                    }
                     
-                    this.dispatchEvent(new CustomEvent('data-ready', { detail: data }));
+                    // Save token if specified
+                    const saveToken = this.getAttribute('save-token');
+                    if (saveToken && this._response) {
+                        this.saveToken(saveToken, this._response);
+                    }
+                    
+                    this._loading = false;
+                    this.dispatchEvent(new CustomEvent('api-success', { detail: this._response }));
                     this.render();
                 } catch (error) {
                     this._loading = false;
                     this._error = error.message;
-                    this.dispatchEvent(new CustomEvent('data-error', { detail: error.message }));
+                    this.dispatchEvent(new CustomEvent('api-error', { detail: error.message }));
                     this.render();
                 }
             }
             
-            get data() {
-                return this._data;
+            collectFormData() {
+                const data = {};
+                const inputs = this.querySelectorAll('input, textarea, select');
+                
+                inputs.forEach(input => {
+                    // Skip trigger buttons
+                    if (input.hasAttribute('trigger')) return;
+                    
+                    const name = input.getAttribute('name');
+                    if (name) {
+                        if (input.type === 'checkbox') {
+                            data[name] = input.checked;
+                        } else if (input.type === 'radio') {
+                            if (input.checked) data[name] = input.value;
+                        } else {
+                            data[name] = input.value;
+                        }
+                    }
+                });
+                
+                return data;
             }
             
-            get loading() {
-                return this._loading;
+            saveToken(tokenName, response) {
+                const tokenPath = this.getAttribute('token-path') || 'token';
+                
+                // Extract token from response using dot notation path
+                const tokenValue = tokenPath.split('.').reduce((obj, key) => {
+                    return obj && obj[key];
+                }, response);
+                
+                if (tokenValue) {
+                    localStorage.setItem(tokenName, tokenValue);
+                    this.dispatchEvent(new CustomEvent('token-saved', { 
+                        detail: { name: tokenName, value: tokenValue } 
+                    }));
+                }
             }
             
-            get error() {
-                return this._error;
+            getToken(tokenName) {
+                return localStorage.getItem(tokenName);
             }
             
-            clearData() {
-                this._data = null;
-                this.dispatchEvent(new CustomEvent('data-clear'));
-                this.render();
+            clearToken(tokenName) {
+                localStorage.removeItem(tokenName);
+                this.dispatchEvent(new CustomEvent('token-cleared', { detail: { name: tokenName } }));
             }
             
-            // Render the component based on current state
             render() {
                 if (!this.shadowRoot) return;
                 
@@ -91,7 +198,7 @@ class WebData extends HTMLElement {
                                 color: #3498db;
                             }
                         </style>
-                        <div class="loading">Loading data...</div>
+                        <div class="loading">Sending request...</div>
                     `;
                     return;
                 }
@@ -111,58 +218,20 @@ class WebData extends HTMLElement {
                     return;
                 }
                 
-                if (!this._data) {
-                    this.shadowRoot.innerHTML = `
-                        <style>
-                            .placeholder {
-                                text-align: center;
-                                padding: 20px;
-                                color: #7f8c8d;
-                            }
-                        </style>
-                        <div class="placeholder">No data loaded</div>
-                    `;
-                    return;
-                }
-                
-                let output = '';
-                
-                if (this.hasAttribute('loop') && Array.isArray(this._data)) {
-                    const itemName = this.getAttribute('itemname') || 'item';
-                    
-                    // Loop through array items
-                    this._data.forEach(item => {
-                        let itemOutput = this._template;
-                        
-                        // Replace all {{property}} with actual values
-                        itemOutput = itemOutput.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (match, path) => {
-                            // Handle itemname.property syntax
-                            if (path.startsWith(itemName + '.')) {
-                                const propPath = path.substring(itemName.length + 1);
-                                const value = this.getNestedValue(item, propPath);
-                                return value !== undefined ? value : '';
-                            }
-                            return '';
-                        });
-                        
-                        output += itemOutput;
-                    });
-                } else {
-                    // Single item rendering
-                    output = this._template.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (match, path) => {
-                        const value = this.getNestedValue(this._data, path);
-                        return value !== undefined ? value : '';
-                    });
-                }
-                
-                this.shadowRoot.innerHTML = output;
+                // Default rendering - just a slot for the content
+                this.shadowRoot.innerHTML = `<slot></slot>`;
             }
             
-            // Get nested property values
-            getNestedValue(obj, path) {
-                return path.split('.').reduce((acc, part) => {
-                    return acc && acc[part] !== undefined ? acc[part] : '';
-                }, obj);
+            get response() {
+                return this._response;
+            }
+            
+            get loading() {
+                return this._loading;
+            }
+            
+            get error() {
+                return this._error;
             }
         }
         
