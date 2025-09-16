@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Variables Component Demo</title>
+    <script src="https://maiin.github.io/webvariables.js"></script>
+    <style>
+        :root {
+            --primary: #3498db;
+            --secondary: #2ecc71;
+            --accent: #e74c3c;
+            --dark: #2c3e50;
+            --light: #ecf0f1;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f8f9fa;
+            padding: 20px;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+        }
+        
+        h1 {
+            color: var(--dark);
+            margin-bottom: 10px;
+        }
+        
+        h2 {
+            color: var(--primary);
+            margin: 30px 0 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--primary);
+        }
+        
+        h3 {
+            color: var(--secondary);
+            margin: 20px 0 10px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .section {
+            background: white;
+            border-radius: 8px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: var(--shadow);
+        }
+        
+        .example {
+            background: var(--light);
+            padding: 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        
+        .demo-box {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+            background: #f9f9f9;
+        }
+        
+        .button {
+            display: inline-block;
+            padding: 10px 15px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+            transition: background 0.3s;
+        }
+        
+        .button:hover {
+            background: #2980b9;
+        }
+        
+        .button-secondary {
+            background: var(--secondary);
+        }
+        
+        .button-secondary:hover {
+            background: #27ae60;
+        }
+        
+        .button-accent {
+            background: var(--accent);
+        }
+        
+        .button-accent:hover {
+            background: #c0392b;
+        }
+        
+        .variable-display {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .variable-card {
+            background: white;
+            border-left: 4px solid var(--primary);
+            padding: 10px 15px;
+            border-radius: 4px;
+            box-shadow: 0 2px 3px rgba(0,0,0,0.1);
+            min-width: 200px;
+        }
+        
+        .variable-card h4 {
+            color: var(--dark);
+            margin-bottom: 5px;
+        }
+        
+        .variable-card p {
+            font-family: monospace;
+            font-size: 1.2em;
+        }
+        
+        .conditional-demo {
+            padding: 15px;
+            margin: 15px 0;
+            border: 1px dashed #ccc;
+            border-radius: 5px;
+        }
+        
+        .conditional-demo.hidden {
+            display: none;
+        }
+        
+        .conditional-demo.visible {
+            display: block;
+            background: #e8f5e9;
+            border-color: var(--secondary);
+        }
+        
+        .event-log {
+            height: 200px;
+            overflow-y: auto;
+            background: #2c3e50;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            margin: 15px 0;
+        }
+        
+        .storage-selector {
+            margin: 15px 0;
+            padding: 10px;
+            background: #f1f8e9;
+            border-radius: 5px;
+        }
+        
+        code {
+            background: #f5f5f5;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        
+        pre {
+            background: #2c3e50;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 15px 0;
+        }
+        
+        .flex-row {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .flex-col {
+            flex: 1;
+            min-width: 300px;
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            background: var(--secondary);
+            color: white;
+            border-radius: 5px;
+            box-shadow: var(--shadow);
+            opacity: 0;
+            transform: translateX(100px);
+            transition: all 0.3s ease;
+        }
+        
+        .notification.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Web Variables Component Demo</h1>
+            <p>A powerful custom element for managing state across your web application</p>
+        </header>
+        
+        <div class="section">
+            <h2>Introduction</h2>
+            <p>The Web Variables component allows you to manage application state with a simple HTML-based syntax. It supports multiple storage backends and provides tools for reacting to state changes.</p>
+            
+            <web-variables id="webVars" storage="localstorage" debug>
+                <!-- This element will manage our variables -->
+            </web-variables>
+            
+            <div class="storage-selector">
+                <h3>Storage Type</h3>
+                <button class="button" onclick="setStorage(null)">Memory (default)</button>
+                <button class="button" onclick="setStorage('localstorage')">Local Storage</button>
+                <button class="button" onclick="setStorage('sessionstorage')">Session Storage</button>
+                <button class="button" onclick="setStorage('indexeddb')">IndexedDB</button>
+                <p>Current storage: <span id="currentStorage">localstorage</span></p>
+            </div>
+        </div>
+        
+        <div class="flex-row">
+            <div class="flex-col">
+                <div class="section">
+                    <h2>Setting Variables</h2>
+                    <p>Use the <code>webvariable</code> attribute on clickable elements to set variables.</p>
+                    
+                    <div class="example">
+                        <h3>Basic Variables</h3>
+                        <button class="button" webvariable="counter(0)">Reset Counter</button>
+                        <button class="button button-secondary" webvariable="counter(counter+1)">Increment Counter</button>
+                        <button class="button button-accent" webvariable="counter(counter-1)">Decrement Counter</button>
+                        
+                        <h3>String Values</h3>
+                        <button class="button" webvariable="message('Hello World!')">Set Message</button>
+                        <button class="button button-secondary" webvariable="message('Welcome to Web Variables!')">Set Alternative Message</button>
+                        
+                        <h3>Boolean Toggles</h3>
+                        <button class="button" webvariable="darkMode">Toggle Dark Mode</button>
+                        <button class="button button-secondary" webvariable="advancedMode(true)">Enable Advanced Mode</button>
+                        <button class="button button-accent" webvariable="advancedMode(false)">Disable Advanced Mode</button>
+                    </div>
+                </div>
+                
+                <div class="section">
+                    <h2>Getting Variables</h2>
+                    <p>Use the <code>getvariable</code> attribute to read variables and expose them as data attributes.</p>
+                    
+                    <div class="example">
+                        <div getvariable="counter message darkMode advancedMode" class="demo-box">
+                            <p>This element has data attributes for: counter, message, darkMode, and advancedMode</p>
+                            <p>Inspect this element to see the data attributes update in real-time.</p>
+                        </div>
+                        
+                        <h3>Variable Display</h3>
+                        <div class="variable-display">
+                            <div class="variable-card">
+                                <h4>Counter</h4>
+                                <p id="counterDisplay">0</p>
+                            </div>
+                            <div class="variable-card">
+                                <h4>Message</h4>
+                                <p id="messageDisplay">None</p>
+                            </div>
+                            <div class="variable-card">
+                                <h4>Dark Mode</h4>
+                                <p id="darkModeDisplay">false</p>
+                            </div>
+                            <div class="variable-card">
+                                <h4>Advanced Mode</h4>
+                                <p id="advancedModeDisplay">false</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex-col">
+                <div class="section">
+                    <h2>Conditional Display</h2>
+                    <p>Use the <code>ifvariable</code> attribute to show/hide elements based on variable values.</p>
+                    
+                    <div class="example">
+                        <div ifvariable="darkMode" class="conditional-demo">
+                            <p>This content is visible because darkMode is true.</p>
+                        </div>
+                        
+                        <div ifvariable="advancedMode(true)" class="conditional-demo">
+                            <p>Advanced mode is enabled!</p>
+                        </div>
+                        
+                        <div ifvariable="counter(5)" class="conditional-demo">
+                            <p>The counter is exactly 5!</p>
+                        </div>
+                        
+                        <div ifvariable="counter counter>3" class="conditional-demo">
+                            <p>The counter exists and is greater than 3.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="section">
+                    <h2>Watching Variables</h2>
+                    <p>Use the <code>watchVariable</code> method to execute callbacks when variables change.</p>
+                    
+                    <div class="example">
+                        <h3>Event Log</h3>
+                        <div class="event-log" id="eventLog">
+                            <div>Variable change events will appear here...</div>
+                        </div>
+                        
+                        <button class="button" onclick="startWatching()">Start Watching All Variables</button>
+                        <button class="button button-accent" onclick="stopWatching()">Stop Watching</button>
+                    </div>
+                </div>
+                
+                <div class="section">
+                    <h2>JavaScript API</h2>
+                    <p>You can also interact with variables directly through JavaScript.</p>
+                    
+                    <div class="example">
+                        <h3>Direct Variable Access</h3>
+                        <div class="demo-box">
+                            <p>Try these in your console:</p>
+                            <pre>// Get the web-variables element
+const webVars = document.querySelector('web-variables');
+
+// Set a variable
+webVars.setVariable('username', 'JohnDoe');
+
+// Get a variable
+webVars.getVariable('username');
+
+// Watch for changes
+webVars.watchVariable('username', (newVal, oldVal) => {
+    console.log(`Username changed from ${oldVal} to ${newVal}`);
+});</pre>
+                        </div>
+                        
+                        <button class="button" onclick="setCustomVariable()">Set Custom Variable (check console)</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="notification" id="notification">
+        Variable changed!
+    </div>
+
+    <script>
+        // Get the web-variables element
+        const webVars = document.getElementById('webVars');
+        
+        // Initialize variables if they don't exist
+        setTimeout(() => {
+            if (webVars.getVariable('counter') === undefined) {
+                webVars.setVariable('counter', 0);
+            }
+            if (webVars.getVariable('message') === undefined) {
+                webVars.setVariable('message', 'No message set');
+            }
+        }, 100);
+        
+        // Function to change storage type
+        function setStorage(type) {
+            const newWebVars = document.createElement('web-variables');
+            if (type) {
+                newWebVars.setAttribute('storage', type);
+            }
+            newWebVars.setAttribute('id', 'webVars');
+            newWebVars.setAttribute('debug', '');
+            
+            // Replace the old element with the new one
+            const oldWebVars = document.getElementById('webVars');
+            oldWebVars.parentNode.replaceChild(newWebVars, oldWebVars);
+            
+            // Update display
+            document.getElementById('currentStorage').textContent = type || 'memory';
+            
+            // Show notification
+            showNotification(`Storage changed to ${type || 'memory'}`);
+        }
+        
+        // Watch for variable changes and update the display
+        let unwatchFunctions = [];
+        
+        function startWatching() {
+            // Stop any existing watches
+            stopWatching();
+            
+            // Watch specific variables
+            unwatchFunctions.push(webVars.watchVariable('counter', (newVal, oldVal) => {
+                document.getElementById('counterDisplay').textContent = newVal;
+                logEvent(`Counter changed: ${oldVal} → ${newVal}`);
+            }));
+            
+            unwatchFunctions.push(webVars.watchVariable('message', (newVal, oldVal) => {
+                document.getElementById('messageDisplay').textContent = newVal;
+                logEvent(`Message changed: ${oldVal} → ${newVal}`);
+            }));
+            
+            unwatchFunctions.push(webVars.watchVariable('darkMode', (newVal, oldVal) => {
+                document.getElementById('darkModeDisplay').textContent = newVal;
+                logEvent(`Dark Mode changed: ${oldVal} → ${newVal}`);
+                
+                // Toggle a class on the body for demonstration
+                document.body.style.backgroundColor = newVal ? '#2c3e50' : '#f8f9fa';
+                document.body.style.color = newVal ? 'white' : '#333';
+            }));
+            
+            unwatchFunctions.push(webVars.watchVariable('advancedMode', (newVal, oldVal) => {
+                document.getElementById('advancedModeDisplay').textContent = newVal;
+                logEvent(`Advanced Mode changed: ${oldVal} → ${newVal}`);
+            }));
+            
+            // Also watch for any variable changes
+            document.addEventListener('variable-change', (e) => {
+                showNotification(`Variable changed: ${e.detail.key} = ${e.detail.value}`);
+            });
+            
+            logEvent('Started watching all variables');
+        }
+        
+        function stopWatching() {
+            unwatchFunctions.forEach(fn => fn());
+            unwatchFunctions = [];
+            logEvent('Stopped watching variables');
+        }
+        
+        function logEvent(message) {
+            const eventLog = document.getElementById('eventLog');
+            const entry = document.createElement('div');
+            entry.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
+            eventLog.appendChild(entry);
+            eventLog.scrollTop = eventLog.scrollHeight;
+        }
+        
+        function showNotification(message) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.classList.add('show');
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+        
+        function setCustomVariable() {
+            const customVar = prompt('Enter variable name:');
+            const value = prompt('Enter variable value:');
+            
+            if (customVar && value !== null) {
+                webVars.setVariable(customVar, value);
+                console.log(`Set ${customVar} to:`, value);
+            }
+        }
+        
+        // Start watching variables when the page loads
+        window.addEventListener('load', () => {
+            // Small delay to ensure the component is ready
+            setTimeout(startWatching, 500);
+        });
+    </script>
+</body>
+</html>
