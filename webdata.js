@@ -1,131 +1,170 @@
 class WebData extends HTMLElement {
-  static get observedAttributes() {
-    return ['url', 'method', 'store-as', 'trigger', 'trigger-on', 'body', 'headers', 'auto-trigger'];
-  }
-
-  constructor() {
-    super();
-    this.abortController = null;
-  }
-
-  connectedCallback() {
-    this._setupTrigger();
-  }
-
-  attributeChangedCallback(name, oldValue, newValue) {
-    if (oldValue === newValue) return;
-    if (name === 'trigger' || name === 'trigger-on' || name === 'auto-trigger') {
-      this._setupTrigger();
-    }
-  }
-
-  _setupTrigger() {
-    const trigger = this.getAttribute('trigger') || 'auto';
-    const autoTrigger = this.getAttribute('auto-trigger'); // For backward compatibility
-    const effectiveTrigger = autoTrigger ? 'auto' : trigger;
-
-    if (effectiveTrigger === 'auto') {
-      this.fetchData();
-    } else if (effectiveTrigger === 'click') {
-      const triggerOn = this.getAttribute('trigger-on');
-      if (triggerOn) {
-        const element = document.querySelector(triggerOn);
-        if (element) {
-          element.addEventListener('click', () => this.fetchData());
+            static get observedAttributes() {
+                return ['get', 'itemname', 'loop'];
+            }
+            
+            constructor() {
+                super();
+                this._data = null;
+                this._loading = false;
+                this._error = null;
+                this.attachShadow({ mode: 'open' });
+            }
+            
+            connectedCallback() {
+                // Store the template from the light DOM
+                this._template = this.innerHTML;
+                // Clear the light DOM to avoid showing {{}} expressions
+                this.innerHTML = '';
+                
+                this.render();
+                this.fetchData();
+            }
+            
+            attributeChangedCallback(name, oldValue, newValue) {
+                if (name === 'get' && this.hasAttribute('auto')) {
+                    this.fetchData();
+                }
+            }
+            
+            async fetchData() {
+                const url = this.getAttribute('get');
+                if (!url) {
+                    this._error = 'No URL specified';
+                    this.dispatchEvent(new CustomEvent('data-error', { detail: this._error }));
+                    return;
+                }
+                
+                this._loading = true;
+                this._error = null;
+                this.dispatchEvent(new CustomEvent('data-loading'));
+                this.render();
+                
+                try {
+                    const response = await fetch(url);
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    
+                    const data = await response.json();
+                    this._data = data;
+                    this._loading = false;
+                    
+                    this.dispatchEvent(new CustomEvent('data-ready', { detail: data }));
+                    this.render();
+                } catch (error) {
+                    this._loading = false;
+                    this._error = error.message;
+                    this.dispatchEvent(new CustomEvent('data-error', { detail: error.message }));
+                    this.render();
+                }
+            }
+            
+            get data() {
+                return this._data;
+            }
+            
+            get loading() {
+                return this._loading;
+            }
+            
+            get error() {
+                return this._error;
+            }
+            
+            clearData() {
+                this._data = null;
+                this.dispatchEvent(new CustomEvent('data-clear'));
+                this.render();
+            }
+            
+            // Render the component based on current state
+            render() {
+                if (!this.shadowRoot) return;
+                
+                if (this._loading) {
+                    this.shadowRoot.innerHTML = `
+                        <style>
+                            .loading {
+                                text-align: center;
+                                padding: 20px;
+                                color: #3498db;
+                            }
+                        </style>
+                        <div class="loading">Loading data...</div>
+                    `;
+                    return;
+                }
+                
+                if (this._error) {
+                    this.shadowRoot.innerHTML = `
+                        <style>
+                            .error {
+                                text-align: center;
+                                padding: 20px;
+                                color: #e74c3c;
+                                background-color: #ffeded;
+                            }
+                        </style>
+                        <div class="error">Error: ${this._error}</div>
+                    `;
+                    return;
+                }
+                
+                if (!this._data) {
+                    this.shadowRoot.innerHTML = `
+                        <style>
+                            .placeholder {
+                                text-align: center;
+                                padding: 20px;
+                                color: #7f8c8d;
+                            }
+                        </style>
+                        <div class="placeholder">No data loaded</div>
+                    `;
+                    return;
+                }
+                
+                let output = '';
+                
+                if (this.hasAttribute('loop') && Array.isArray(this._data)) {
+                    const itemName = this.getAttribute('itemname') || 'item';
+                    
+                    // Loop through array items
+                    this._data.forEach(item => {
+                        let itemOutput = this._template;
+                        
+                        // Replace all {{property}} with actual values
+                        itemOutput = itemOutput.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (match, path) => {
+                            // Handle itemname.property syntax
+                            if (path.startsWith(itemName + '.')) {
+                                const propPath = path.substring(itemName.length + 1);
+                                const value = this.getNestedValue(item, propPath);
+                                return value !== undefined ? value : '';
+                            }
+                            return '';
+                        });
+                        
+                        output += itemOutput;
+                    });
+                } else {
+                    // Single item rendering
+                    output = this._template.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (match, path) => {
+                        const value = this.getNestedValue(this._data, path);
+                        return value !== undefined ? value : '';
+                    });
+                }
+                
+                this.shadowRoot.innerHTML = output;
+            }
+            
+            // Get nested property values
+            getNestedValue(obj, path) {
+                return path.split('.').reduce((acc, part) => {
+                    return acc && acc[part] !== undefined ? acc[part] : '';
+                }, obj);
+            }
         }
-      } else {
-        this.addEventListener('click', () => this.fetchData());
-      }
-    } else if (effectiveTrigger === 'event') {
-      const eventName = this.getAttribute('trigger-on');
-      if (eventName) {
-        document.addEventListener(eventName, () => this.fetchData());
-      }
-    }
-  }
-
-  async fetchData() {
-    const url = this.getAttribute('url');
-    const method = this.getAttribute('method') || 'GET';
-    const storeAs = this.getAttribute('store-as');
-    const body = this.getAttribute('body');
-    const headers = this.getAttribute('headers');
-
-    if (!url) return;
-
-    // Abort previous request if any
-    if (this.abortController) {
-      this.abortController.abort();
-    }
-    this.abortController = new AbortController();
-
-    // Prepare request options
-    const options = {
-      method,
-      signal: this.abortController.signal,
-      headers: {}
-    };
-
-    if (headers) {
-      try {
-        options.headers = JSON.parse(headers);
-      } catch (e) {
-        console.error('Failed to parse headers', e);
-      }
-    }
-
-    if (body && method !== 'GET' && method !== 'HEAD') {
-      options.body = body;
-      if (!options.headers['Content-Type']) {
-        options.headers['Content-Type'] = 'application/json';
-      }
-    }
-
-    // Emit loading event and update webvariables
-    this.dispatchEvent(new CustomEvent('api-loading', { detail: { url, method } }));
-    if (storeAs) {
-      const webVariables = document.querySelector('web-variables');
-      if (webVariables) {
-        webVariables.setVariable(`${storeAs}-loading`, true);
-        webVariables.setVariable(`${storeAs}-error`, null);
-      }
-    }
-
-    try {
-      const response = await fetch(url, options);
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-      const data = await response.json();
-
-      // Store data in webvariables if store-as is set
-      if (storeAs) {
-        const webVariables = document.querySelector('web-variables');
-        if (webVariables) {
-          webVariables.setVariable(storeAs, data);
-          webVariables.setVariable(`${storeAs}-loading`, false);
-          webVariables.setVariable(`${storeAs}-error`, null);
-        }
-      }
-
-      // Emit success event
-      this.dispatchEvent(new CustomEvent('api-success', { detail: data }));
-    } catch (error) {
-      if (error.name === 'AbortError') return;
-
-      // Store error in webvariables if store-as is set
-      if (storeAs) {
-        const webVariables = document.querySelector('web-variables');
-        if (webVariables) {
-          webVariables.setVariable(`${storeAs}-error`, error.message);
-          webVariables.setVariable(`${storeAs}-loading`, false);
-        }
-      }
-
-      // Emit error event
-      this.dispatchEvent(new CustomEvent('api-error', { detail: error }));
-    }
-  }
-}
-
-customElements.define('webdata', WebData);
+        
+        // Register the custom element
+        customElements.define('web-data', WebData);
