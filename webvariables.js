@@ -92,10 +92,25 @@ class WebVariables extends HTMLElement {
     if (oldValue !== value) {
       this._saveVariable(key, value);
       this.refreshAll();
+      document.dispatchEvent(new CustomEvent('variable-change', {
+        detail: { key, value, oldValue }
+      }));
       if (this.hasAttribute("debug")) {
-        alert(`Variable changed: ${key} = ${value}`);
+        console.log(`Variable changed: ${key} = ${value}`);
       }
     }
+  }
+
+  // Method to watch for specific variables
+  watchVariable(key, callback) {
+    const handler = (e) => {
+      if (e.detail.key === key) {
+        callback(e.detail.value, e.detail.oldValue);
+      }
+    };
+    
+    document.addEventListener('variable-change', handler);
+    return () => document.removeEventListener('variable-change', handler);
   }
 
   getVariable(key) {
