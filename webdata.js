@@ -1,133 +1,131 @@
 class WebData extends HTMLElement {
+  static get observedAttributes() {
+    return ['url', 'method', 'store-as', 'trigger', 'trigger-on', 'body', 'headers', 'auto-trigger'];
+  }
+
   constructor() {
     super();
-    this._abortController = null;
+    this.abortController = null;
   }
 
   connectedCallback() {
-    this._loadData();
-  }
-
-  static get observedAttributes() {
-    return ['src', 'store-as', 'refresh-trigger'];
+    this._setupTrigger();
   }
 
   attributeChangedCallback(name, oldValue, newValue) {
-    if (name === 'src' || name === 'refresh-trigger') {
-      this._loadData();
+    if (oldValue === newValue) return;
+    if (name === 'trigger' || name === 'trigger-on' || name === 'auto-trigger') {
+      this._setupTrigger();
     }
   }
 
-  async _loadData() {
-    const src = this.getAttribute('src');
-    const storeAs = this.getAttribute('store-as');
-    const method = this.getAttribute('method') || 'GET';
-    
-    if (!src || !storeAs) return;
+  _setupTrigger() {
+    const trigger = this.getAttribute('trigger') || 'auto';
+    const autoTrigger = this.getAttribute('auto-trigger'); // For backward compatibility
+    const effectiveTrigger = autoTrigger ? 'auto' : trigger;
 
-    // Cancel previous request if still pending
-    if (this._abortController) {
-      this._abortController.abort();
+    if (effectiveTrigger === 'auto') {
+      this.fetchData();
+    } else if (effectiveTrigger === 'click') {
+      const triggerOn = this.getAttribute('trigger-on');
+      if (triggerOn) {
+        const element = document.querySelector(triggerOn);
+        if (element) {
+          element.addEventListener('click', () => this.fetchData());
+        }
+      } else {
+        this.addEventListener('click', () => this.fetchData());
+      }
+    } else if (effectiveTrigger === 'event') {
+      const eventName = this.getAttribute('trigger-on');
+      if (eventName) {
+        document.addEventListener(eventName, () => this.fetchData());
+      }
+    }
+  }
+
+  async fetchData() {
+    const url = this.getAttribute('url');
+    const method = this.getAttribute('method') || 'GET';
+    const storeAs = this.getAttribute('store-as');
+    const body = this.getAttribute('body');
+    const headers = this.getAttribute('headers');
+
+    if (!url) return;
+
+    // Abort previous request if any
+    if (this.abortController) {
+      this.abortController.abort();
+    }
+    this.abortController = new AbortController();
+
+    // Prepare request options
+    const options = {
+      method,
+      signal: this.abortController.signal,
+      headers: {}
+    };
+
+    if (headers) {
+      try {
+        options.headers = JSON.parse(headers);
+      } catch (e) {
+        console.error('Failed to parse headers', e);
+      }
     }
 
-    this._abortController = new AbortController();
-    
+    if (body && method !== 'GET' && method !== 'HEAD') {
+      options.body = body;
+      if (!options.headers['Content-Type']) {
+        options.headers['Content-Type'] = 'application/json';
+      }
+    }
+
+    // Emit loading event and update webvariables
+    this.dispatchEvent(new CustomEvent('api-loading', { detail: { url, method } }));
+    if (storeAs) {
+      const webVariables = document.querySelector('web-variables');
+      if (webVariables) {
+        webVariables.setVariable(`${storeAs}-loading`, true);
+        webVariables.setVariable(`${storeAs}-error`, null);
+      }
+    }
+
     try {
-      // Show loading state
-      this.dispatchEvent(new CustomEvent('data-loading'));
-      this._showSlot('loading');
-
-      const response = await fetch(src, {
-        method,
-        signal: this._abortController.signal,
-        headers: this._getHeaders(),
-        body: method !== 'GET' ? this._getBody() : undefined
-      });
-
+      const response = await fetch(url, options);
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
-
       const data = await response.json();
-      
-      // Store the data in web-variables
-      const variables = document.querySelector('web-variables');
-      if (variables) {
-        variables.setVariable(storeAs, data);
-        variables.setVariable(`${storeAs}-loading`, false);
-        variables.setVariable(`${storeAs}-error`, null);
+
+      // Store data in webvariables if store-as is set
+      if (storeAs) {
+        const webVariables = document.querySelector('web-variables');
+        if (webVariables) {
+          webVariables.setVariable(storeAs, data);
+          webVariables.setVariable(`${storeAs}-loading`, false);
+          webVariables.setVariable(`${storeAs}-error`, null);
+        }
       }
 
-      // Show success state
-      this.dispatchEvent(new CustomEvent('data-loaded', { detail: data }));
-      this._showSlot('default');
-
+      // Emit success event
+      this.dispatchEvent(new CustomEvent('api-success', { detail: data }));
     } catch (error) {
-      if (error.name === 'AbortError') {
-        return; // Request was cancelled, do nothing
+      if (error.name === 'AbortError') return;
+
+      // Store error in webvariables if store-as is set
+      if (storeAs) {
+        const webVariables = document.querySelector('web-variables');
+        if (webVariables) {
+          webVariables.setVariable(`${storeAs}-error`, error.message);
+          webVariables.setVariable(`${storeAs}-loading`, false);
+        }
       }
-      
-      // Show error state
-      const variables = document.querySelector('web-variables');
-      if (variables) {
-        variables.setVariable(`${storeAs}-error`, error.message);
-        variables.setVariable(`${storeAs}-loading`, false);
-      }
-      
-      this.dispatchEvent(new CustomEvent('data-error', { detail: error }));
-      this._showSlot('error');
-    }
-  }
 
-  _getHeaders() {
-    const headers = {};
-    
-    // Add content-type if not GET
-    if (this.getAttribute('method') !== 'GET') {
-      headers['Content-Type'] = 'application/json';
+      // Emit error event
+      this.dispatchEvent(new CustomEvent('api-error', { detail: error }));
     }
-    
-    // Add custom headers
-    const headersAttr = this.getAttribute('headers');
-    if (headersAttr) {
-      try {
-        Object.assign(headers, JSON.parse(headersAttr));
-      } catch (e) {
-        console.error('Failed to parse headers attribute', e);
-      }
-    }
-    
-    return headers;
-  }
-
-  _getBody() {
-    const bodyAttr = this.getAttribute('body');
-    if (!bodyAttr) return null;
-    
-    try {
-      return JSON.stringify(JSON.parse(bodyAttr));
-    } catch (e) {
-      // If not valid JSON, send as plain text
-      return bodyAttr;
-    }
-  }
-
-  _showSlot(slotName) {
-    // Hide all slots
-    this.querySelectorAll('[slot]').forEach(el => {
-      el.style.display = 'none';
-    });
-    
-    // Show requested slot
-    const slotEl = this.querySelector(`[slot="${slotName}"]`);
-    if (slotEl) {
-      slotEl.style.display = 'block';
-    }
-  }
-
-  refresh() {
-    this._loadData();
   }
 }
 
-customElements.define('web-data', WebData);
+customElements.define('webdata', WebData);
