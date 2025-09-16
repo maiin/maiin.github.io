@@ -1,86 +1,116 @@
 class WebRouter extends HTMLElement {
   constructor() {
     super();
-    this._currentView = null;
-    this._views = new Map();
+    this.routes = new Map();
+    this._currentRoute = null;
   }
 
   connectedCallback() {
-    this._loadViews();
-    this._setupRouting();
-  }
+    // Parse the initial URL
+    this._defineRoutes();
+    this._parseUrl(window.location.pathname);
 
-  _loadViews() {
-    // Get all view elements
-    const viewElements = this.querySelectorAll('app-view');
-    
-    viewElements.forEach(view => {
-      const name = view.getAttribute('name');
-      const mode = view.getAttribute('mode');
-      const isDefault = view.hasAttribute('default');
-      
-      if (name) this._views.set(name, view);
-      if (mode) this._views.set(mode, view);
-      if (isDefault) this._defaultView = view;
-      
-      // Hide all views initially
-      view.style.display = 'none';
+    // Listen to popstate events (back/forward button)
+    window.addEventListener('popstate', () => {
+      this._parseUrl(window.location.pathname);
     });
-  }
 
-  _setupRouting() {
-    // Listen for variable changes that affect routing
+    // Listen for variable changes that should update the URL
     document.addEventListener('variable-change', (e) => {
-      const { key, value } = e.detail;
-      
-      // Check if this variable controls a view
-      if (this._views.has(key)) {
-        this.navigateTo(key);
-      } else if (key === 'app-mode' || key === 'view') {
-        // Common convention for view state
-        this.navigateTo(value);
-      }
+      this._updateUrlFromVariables(e.detail);
     });
+  }
 
-    // Check initial state
-    const variables = document.querySelector('web-variables');
-    if (variables) {
-      const initialView = variables.getVariable('app-mode') || 
-                         variables.getVariable('view') ||
-                         this._defaultView;
-      if (initialView) this.navigateTo(initialView);
-    } else if (this._defaultView) {
-      this.navigateTo(this._defaultView);
+  // Define routes by looking for <app-route> elements inside the router
+  _defineRoutes() {
+    const routeElements = this.querySelectorAll('app-route');
+    routeElements.forEach(routeEl => {
+      const pathTemplate = routeEl.getAttribute('path');
+      const viewName = routeEl.getAttribute('view');
+      this.routes.set(viewName, pathTemplate);
+    });
+  }
+
+  // The core function: extract parameters from the current URL and set them as variables
+  _parseUrl(url) {
+    let matchedView = null;
+    let extractedParams = {};
+
+    // Try to match the URL against all defined route templates
+    for (const [viewName, pathTemplate] of this.routes.entries()) {
+      const pattern = this._convertTemplateToRegex(pathTemplate);
+      const match = url.match(pattern);
+
+      if (match) {
+        matchedView = viewName;
+        // Extract the named groups from the regex match
+        extractedParams = match.groups || {};
+        break;
+      }
+    }
+
+    if (matchedView) {
+      // 1. Set the app view
+      const variablesEl = document.querySelector('web-variables');
+      if (variablesEl) {
+        variablesEl.setVariable('app-view', matchedView);
+      }
+
+      // 2. Set all extracted parameters as variables
+      Object.entries(extractedParams).forEach(([key, value]) => {
+        // This will trigger a 'variable-change' event
+        variablesEl.setVariable(key, value);
+      });
+
+      this._currentRoute = { view: matchedView, params: extractedParams };
+    } else {
+      // Handle 404 - no route matched
+      console.warn(`Webrouter: No route found for URL "${url}"`);
+      const variablesEl = document.querySelector('web-variables');
+      if (variablesEl && variablesEl.getVariable('app-view') !== 'not-found') {
+        variablesEl.setVariable('app-view', 'not-found');
+      }
     }
   }
 
-  navigateTo(viewName) {
-    const targetView = this._views.get(viewName);
-    
-    if (!targetView) {
-      console.warn(`View "${viewName}" not found`);
-      if (this._defaultView) targetView = this._defaultView;
-      else return;
-    }
+  // Convert a path template like "/user/:userid" to a regex
+  _convertTemplateToRegex(template) {
+    const regexPattern = template.replace(/\/:(\w+)/g, (_, paramName) => `/(?<${paramName}>[^/]+)`);
+    return new RegExp(`^${regexPattern}$`);
+  }
 
-    // Hide current view
-    if (this._currentView) {
-      this._currentView.style.display = 'none';
-      this._currentView.dispatchEvent(new CustomEvent('view-hidden'));
-    }
+  // Update the URL when specific variables change (e.g., userid)
+  _updateUrlFromVariables(variableChange) {
+    const { key, value } = variableChange;
+    const variablesEl = document.querySelector('web-variables');
 
-    // Show new view
-    targetView.style.display = 'block';
-    this._currentView = targetView;
-    targetView.dispatchEvent(new CustomEvent('view-visible'));
-    
-    // Update URL if needed
-    if (this.hasAttribute('update-url')) {
-      const url = new URL(window.location);
-      url.searchParams.set('view', viewName);
-      window.history.pushState({}, '', url);
+    // Check if the changed variable is part of the current route's template
+    if (this._currentRoute && this.routes.has(this._currentRoute.view)) {
+      const routeTemplate = this.routes.get(this._currentRoute.view);
+
+      // If this variable is a parameter in the route template (e.g., :userid)
+      if (routeTemplate.includes(`:${key}`)) {
+        // Build the new path by replacing the template placeholders with current variable values
+        let newPath = routeTemplate;
+
+        // Get all possible params from the template
+        const paramMatches = [...routeTemplate.matchAll(/\/:(\w+)/g)];
+        for (const match of paramMatches) {
+          const paramName = match[1];
+          const paramValue = variablesEl.getVariable(paramName) || '';
+          newPath = newPath.replace(`:${paramName}`, paramValue);
+        }
+
+        // Update the browser URL without refreshing the page
+        window.history.pushState({}, '', newPath);
+        this._currentRoute.params[key] = value; // Update internal state
+      }
     }
   }
 }
 
-customElements.define('web-router', WebRouter);
+// Define the custom element for the route definitions
+class AppRoute extends HTMLElement {
+  // This element is just a declarative marker for the router to find.
+  // Its logic is handled entirely by the parent <web-router>.
+}
