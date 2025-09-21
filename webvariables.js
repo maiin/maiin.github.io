@@ -35,10 +35,69 @@ class WebVariables extends HTMLElement {
       });
     });
 
+    // Handle forvariable attribute on click
+    const forvariableTarget = e.target.closest("[forvariable]");
+    if (forvariableTarget) {
+        const definitions = forvariableTarget.getAttribute("forvariable").split(/\s+/);
+        definitions.forEach(def => {
+            const match = def.match(/^([^(]+)(\(([^)]+)\))?$/);
+            if (!match) return;
+            
+            const elementId = match[1];
+            const property = match[3] ?? 'visible';
+            const targetElement = document.getElementById(elementId);
+            
+            if (!targetElement) return;
+            
+            // Apply the property to the target element
+            this.applyProperty(targetElement, property);
+        });
+    }
+
     this.refreshAll();
     // Observe DOM changes for dynamically added elements
     const observer = new MutationObserver(() => this.refreshAll());
     observer.observe(document.body, { childList: true, subtree: true });
+  }
+
+  // Method to apply property to target element
+  applyProperty(targetElement, property) {
+      // Reset all classes that might affect display/visibility
+      targetElement.removeAttribute('style');
+      targetElement.className = 'target';
+      
+      switch(property) {
+          case 'flex':
+              targetElement.classList.add('flex');
+              break;
+          case 'inline-flex':
+              targetElement.classList.add('inline-flex');
+              break;
+          case 'grid':
+              targetElement.classList.add('grid');
+              break;
+          case 'inline-grid':
+              targetElement.classList.add('inline-grid');
+              break;
+          case 'visible':
+              targetElement.style.display = 'block';
+              break;
+          case 'none':
+              targetElement.style.display = 'none';
+              break;
+          case 'hidden':
+              targetElement.classList.add('hidden');
+              break;
+          default:
+              // Handle custom opacity values like "opacity-0.5"
+              if (property.startsWith('opacity-')) {
+                  const opacityValue = property.split('-')[1];
+                  targetElement.style.opacity = opacityValue;
+                  targetElement.style.display = 'block';
+              } else {
+                  targetElement.style.display = 'block';
+              }
+      }
   }
 
   async _initIndexedDB() {
