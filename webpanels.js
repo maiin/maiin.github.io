@@ -34,6 +34,7 @@ class WebPanels extends HTMLElement {
             "top top top"
             "left main right"
             "bottom bottom bottom";
+        container: webpanels / inline-size;
       }
       ::slotted(panel) {
       display: block;
@@ -120,7 +121,7 @@ class WebPanels extends HTMLElement {
         ::slotted(panel[right]) ~ ::slotted(panel[right]) {
             grid-area: right;
         }
-      @media (max-width: 767px) {
+      @container webpanels (max-width: 767px) {
         :host{
           grid-template-columns: 1fr;
             grid-template-areas: 
