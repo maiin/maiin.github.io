@@ -68,9 +68,6 @@ class WebPanels extends HTMLElement {
         
         ::slotted(panel[overlay][left]) {
             grid-area: main;
-            left: 0;
-            top: 0;
-            bottom: 0;
             inset: 0 auto 0 0;
         }
         
