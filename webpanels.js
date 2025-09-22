@@ -63,9 +63,7 @@ class WebPanels extends HTMLElement {
                     
         ::slotted(panel[overlay][right]) {
             grid-area: main;
-            right: 0;
-            top: 0;
-            bottom: 0;
+            inset: 0 0 0 auto;
         }
         
         ::slotted(panel[overlay][left]) {
@@ -73,22 +71,19 @@ class WebPanels extends HTMLElement {
             left: 0;
             top: 0;
             bottom: 0;
+            inset: 0 auto 0 0;
         }
         
         ::slotted(panel[overlay][top]) {
             grid-area: top;
-            top: 0;
-            left: 0;
-            right: 0;
+            inset: 0 0 auto;
             z-index: 20;
             position: absolute;
         }
         
         ::slotted(panel[overlay][bottom]) {
             grid-area: bottom;
-            bottom: 0;
-            left: 0;
-            right: 0;
+            inset: auto 0 0;
             z-index: 20;
             position: absolute;
         }
