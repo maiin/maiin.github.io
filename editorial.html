@@ -1,0 +1,76 @@
+<html>
+<head>
+<title>Grid: Editorial</title>
+<style>
+
+*{margin: 0; padding: 0;}
+
+body{background: #f6f6f6; font-size: 18px; font-family: sans-serif;}
+
+.grid_editorial{
+display: grid;
+grid-template-areas:
+     "top top top top top"
+     "top top top top top"
+     "left left content right right"
+     "bottom bottom bottom bottom bottom"
+     "bottom bottom bottom bottom bottom";
+grid-template-columns: auto auto 1200px auto auto;
+grid-template-rows: 50px 50px auto 50px 50px;
+}
+
+
+
+.card{
+padding: 50px;
+border-radius: 20px;
+background: #999;
+grid-area: content;
+grid-row-start: 2;
+grid-row-end: 5;
+min-height: 400px;
+}
+.overlay{
+padding: 25px;
+border-radius: 20px;
+background: #00F5FF;
+
+grid-column-start: 2;
+grid-column-end: 5;
+grid-row-start: 3;
+grid-row-end: 4;
+justify-self: end;
+width: 500px;
+margin: 10px;
+}
+
+@media screen and (max-width: 1240px) {
+   .grid_editorial{
+     grid-template-columns: 10px 10px auto 10px 10px;
+   }
+.overlay{
+grid-column-start: 3;
+grid-column-end: 4;
+grid-row-start: 4;
+grid-row-end: 6;
+justify-self: stretch;
+width: auto;
+min-height: 200px
+}
+}
+
+</style>
+</head>
+<body>
+<section class="grid_editorial">
+  <div class="card">
+    <h2>Title</h2>
+    <p>Description</p>
+  </div>
+  <div class="overlay">
+    <h3>Title</h3>
+    <p>Description</p>
+  </div>
+</section>
+</body>   
+</html>
