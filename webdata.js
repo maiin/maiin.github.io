@@ -2,66 +2,81 @@ class WebData extends HTMLElement {
     constructor() {
         super();
         this.attachShadow({ mode: 'open' });
-        this.responseData = null;
+        this.res = null;
     }
 
     connectedCallback() {
         this.render();
+        // Trigger GET automatically if 'get' and 'autoload' are present
         if (this.hasAttribute('autoload') && this.hasAttribute('get')) this.api('GET');
         
-        // Listen for the webtrigger button
         this.addEventListener('click', e => {
             const btn = e.target.closest('[webtrigger]');
             if (!btn) return;
             
-            // Find which method attribute is on the <web-data> tag
+            // Auto-detect method from the <web-data> attributes
             const method = ['post', 'patch', 'put', 'delete', 'get'].find(m => this.hasAttribute(m)) || 'get';
             this.api(method.toUpperCase(), btn.getAttribute('webtrigger'));
         });
     }
 
     async api(method, callback) {
-        const url = this.getAttribute('url');
-        this.render("Sending...");
+        let url = this.getAttribute('url');
+        this.render("Processing...");
 
         try {
-            const options = { method, credentials: 'include', headers: {} };
+            const options = { method, credentials: 'include', headers: { 'Content-Type': 'application/json' } };
 
             if (method !== 'GET') {
-                const fd = new FormData();
-                // Find inputs inside the component
-                this.querySelectorAll('input, textarea, select').forEach(i => fd.append(i.name, i.value));
-                
-                // Convert to the nested JSON structure your PHP API expects
-                const plainData = Object.fromEntries(fd);
-                const { pageslug, ...rest } = plainData;
-                const payload = { pageslug, data: rest };
+                const inputs = Array.from(this.querySelectorAll('input, textarea, select'));
+                const rawData = {};
+                inputs.forEach(i => { if(i.name) rawData[i.name] = i.value });
 
-                options.body = JSON.stringify(payload);
-                options.headers['Content-Type'] = 'application/json';
+                let bodyPayload;
+                
+                // --- SMART DATA MAPPING ---
+                if (url.includes('/user/login')) {
+                    // Login needs FLAT data
+                    bodyPayload = rawData;
+                } else if (url.includes('/phable')) {
+                    // Phable POST/PATCH needs WRAPPED data
+                    const { pageslug, ...rest } = rawData;
+                    bodyPayload = { pageslug, data: rest };
+                    
+                    // If PATCHing, ensure the slug is in the URL if it's not there
+                    if (method === 'PATCH' && !url.split('/').pop().includes(pageslug) && pageslug) {
+                        url = `${url.replace(/\/$/, '')}/${pageslug}`;
+                    }
+                } else {
+                    bodyPayload = rawData;
+                }
+
+                options.body = JSON.stringify(bodyPayload);
             }
 
-            const res = await fetch(url, options);
-            this.responseData = await res.json();
+            const response = await fetch(url, options);
+            this.res = await response.json();
 
-            if (!res.ok) throw new Error(this.responseData.error || 'API Error');
+            if (!response.ok) throw new Error(this.res.error || 'Request Failed');
 
-            this.render(); // Success!
-            if (callback) eval(callback); // Run your custom JS string
+            this.render(); // Success
+            if (callback) new Function(callback).call(this); // Execute webtrigger string
         } catch (err) {
-            this.render(`Error: ${err.message}`);
+            this.render(err.message, true);
         }
     }
 
-    render(msg = '') {
+    render(msg = '', isError = false) {
         this.shadowRoot.innerHTML = `
             <style>
-                .status { color: #555; font-size: 13px; margin: 5px 0; }
-                pre { background: #f4f4f4; padding: 10px; font-size: 12px; overflow: auto; border: 1px solid #ddd; }
+                .msg { padding: 8px; margin-bottom: 10px; border-radius: 4px; font-family: sans-serif; font-size: 13px; }
+                .err { background: #fff1f0; color: #cf1322; border: 1px solid #ffa39e; }
+                .info { background: #e6f7ff; color: #1890ff; border: 1px solid #91d5ff; }
+                pre { background: #f5f5f5; padding: 10px; font-size: 12px; border: 1px solid #ccc; overflow: auto; max-height: 200px; }
             </style>
-            ${msg ? `<div class="status">${msg}</div>` : ''}
+            ${msg ? `<div class="msg ${isError ? 'err' : 'info'}">${msg}</div>` : ''}
             <slot></slot>
-            ${(this.responseData && !msg) ? `<pre>${JSON.stringify(this.responseData, null, 2)}</pre>` : ''}
+            ${(this.res && !msg) ? `<pre>${JSON.stringify(this.res, null, 2)}</pre>` : ''}
         `;
     }
 }
