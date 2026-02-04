@@ -1,239 +1,118 @@
 class WebData extends HTMLElement {
-            static get observedAttributes() {
-                return ['get', 'post', 'put', 'patch', 'delete', 'data', 'save-token', 'use-token', 'token-path', 'headers'];
-            }
-            
-            constructor() {
-                super();
-                this._data = null;
-                this._loading = false;
-                this._error = null;
-                this._response = null;
-                this.attachShadow({ mode: 'open' });
-            }
-            
-            connectedCallback() {
-                this.render();
-                
-                // Set up trigger buttons
-                const triggerButtons = this.querySelectorAll('[trigger]');
-                triggerButtons.forEach(button => {
-                    button.addEventListener('click', () => {
-                        const method = button.getAttribute('trigger').toUpperCase();
-                        this.sendRequest(method);
-                    });
-                });
-            }
-            
-            async sendRequest(method) {
-                let url;
-                let data;
-                
-                // Determine URL based on method
-                switch(method) {
-                    case 'GET': url = this.getAttribute('get'); break;
-                    case 'POST': url = this.getAttribute('post'); break;
-                    case 'PUT': url = this.getAttribute('put'); break;
-                    case 'PATCH': url = this.getAttribute('patch'); break;
-                    case 'DELETE': url = this.getAttribute('delete'); break;
-                    default: 
-                        this._error = 'Invalid method';
-                        this.render();
-                        return;
-                }
-                
-                if (!url) {
-                    this._error = 'No URL specified for method: ' + method;
-                    this.render();
-                    return;
-                }
-                
-                // Prepare data based on data attribute
-                const dataAttr = this.getAttribute('data');
-                if (dataAttr === 'auto') {
-                    // Collect data from form inputs
-                    data = this.collectFormData();
-                } else if (dataAttr) {
-                    try {
-                        // Parse JSON data
-                        data = JSON.parse(dataAttr);
-                    } catch (e) {
-                        this._error = 'Invalid JSON data: ' + e.message;
-                        this.render();
-                        return;
-                    }
-                }
-                
-                // Prepare headers
-                const headers = {};
-                
-                // Add content type for methods with body
-                if (['POST', 'PUT', 'PATCH'].includes(method) && data) {
-                    headers['Content-Type'] = 'application/json';
-                }
-                
-                // Add authorization token if specified
-                const useToken = this.getAttribute('use-token');
-                if (useToken) {
-                    const token = this.getToken(useToken);
-                    if (token) {
-                        headers['Authorization'] = `Bearer ${token}`;
-                    }
-                }
-                
-                // Add custom headers if specified
-                const headersAttr = this.getAttribute('headers');
-                if (headersAttr) {
-                    try {
-                        const customHeaders = JSON.parse(headersAttr);
-                        Object.assign(headers, customHeaders);
-                    } catch (e) {
-                        console.error('Failed to parse headers', e);
-                    }
-                }
-                
-                this._loading = true;
-                this._error = null;
-                this.dispatchEvent(new CustomEvent('api-loading', { detail: { url, method } }));
-                this.render();
-                
-                try {
-                    const options = {
-                        method,
-                        headers
-                    };
-                    
-                    // Add body for methods that need it
-                    if (['POST', 'PUT', 'PATCH'].includes(method) && data) {
-                        options.body = JSON.stringify(data);
-                    }
-                    
-                    const response = await fetch(url, options);
-                    
-                    if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                    }
-                    
-                    // Try to parse JSON response
-                    try {
-                        this._response = await response.json();
-                    } catch (e) {
-                        this._response = { status: response.status, statusText: response.statusText };
-                    }
-                    
-                    // Save token if specified
-                    const saveToken = this.getAttribute('save-token');
-                    if (saveToken && this._response) {
-                        this.saveToken(saveToken, this._response);
-                    }
-                    
-                    this._loading = false;
-                    this.dispatchEvent(new CustomEvent('api-success', { detail: this._response }));
-                    this.render();
-                } catch (error) {
-                    this._loading = false;
-                    this._error = error.message;
-                    this.dispatchEvent(new CustomEvent('api-error', { detail: error.message }));
-                    this.render();
-                }
-            }
-            
-            collectFormData() {
-                const data = {};
-                const inputs = this.querySelectorAll('input, textarea, select');
-                
-                inputs.forEach(input => {
-                    // Skip trigger buttons
-                    if (input.hasAttribute('trigger')) return;
-                    
-                    const name = input.getAttribute('name');
-                    if (name) {
-                        if (input.type === 'checkbox') {
-                            data[name] = input.checked;
-                        } else if (input.type === 'radio') {
-                            if (input.checked) data[name] = input.value;
-                        } else {
-                            data[name] = input.value;
-                        }
-                    }
-                });
-                
-                return data;
-            }
-            
-            saveToken(tokenName, response) {
-                const tokenPath = this.getAttribute('token-path') || 'token';
-                
-                // Extract token from response using dot notation path
-                const tokenValue = tokenPath.split('.').reduce((obj, key) => {
-                    return obj && obj[key];
-                }, response);
-                
-                if (tokenValue) {
-                    localStorage.setItem(tokenName, tokenValue);
-                    this.dispatchEvent(new CustomEvent('token-saved', { 
-                        detail: { name: tokenName, value: tokenValue } 
-                    }));
-                }
-            }
-            
-            getToken(tokenName) {
-                return localStorage.getItem(tokenName);
-            }
-            
-            clearToken(tokenName) {
-                localStorage.removeItem(tokenName);
-                this.dispatchEvent(new CustomEvent('token-cleared', { detail: { name: tokenName } }));
-            }
-            
-            render() {
-                if (!this.shadowRoot) return;
-                
-                if (this._loading) {
-                    this.shadowRoot.innerHTML = `
-                        <style>
-                            .loading {
-                                text-align: center;
-                                padding: 20px;
-                                color: #3498db;
-                            }
-                        </style>
-                        <div class="loading">Sending request...</div>
-                    `;
-                    return;
-                }
-                
-                if (this._error) {
-                    this.shadowRoot.innerHTML = `
-                        <style>
-                            .error {
-                                text-align: center;
-                                padding: 20px;
-                                color: #e74c3c;
-                                background-color: #ffeded;
-                            }
-                        </style>
-                        <div class="error">Error: ${this._error}</div>
-                    `;
-                    return;
-                }
-                
-                // Default rendering - just a slot for the content
-                this.shadowRoot.innerHTML = `<slot></slot>`;
-            }
-            
-            get response() {
-                return this._response;
-            }
-            
-            get loading() {
-                return this._loading;
-            }
-            
-            get error() {
-                return this._error;
-            }
-        }
+    static get observedAttributes() {
+        return ['url', 'method', 'autoload', 'wrap-data'];
+    }
+
+    constructor() {
+        super();
+        this._response = null;
+        this._loading = false;
+        this._error = null;
+        this.attachShadow({ mode: 'open' });
+    }
+
+    connectedCallback() {
+        this.render();
         
-        // Register the custom element
-        customElements.define('web-data', WebData);
+        // Auto-fetch if the attribute is present
+        if (this.hasAttribute('autoload') && this.getAttribute('url')) {
+            this.sendRequest();
+        }
+
+        // Listen for clicks on children with [trigger] attribute
+        this.addEventListener('click', (e) => {
+            const btn = e.target.closest('[trigger]');
+            if (btn) {
+                const method = btn.getAttribute('trigger').toUpperCase();
+                this.sendRequest(method);
+            }
+        });
+    }
+
+    async sendRequest(overrideMethod = null) {
+        const url = this.getAttribute('url');
+        const method = overrideMethod || this.getAttribute('method') || 'GET';
+        
+        if (!url) return;
+
+        this._loading = true;
+        this._error = null;
+        this.render();
+        this.dispatchEvent(new CustomEvent('api-start'));
+
+        try {
+            const options = {
+                method,
+                // CRITICAL: This allows PHP sessions to work
+                credentials: 'include', 
+                headers: { 'Accept': 'application/json' }
+            };
+
+            if (['POST', 'PATCH', 'PUT'].includes(method)) {
+                let payload = this.collectFormData();
+                
+                // Nest data for Phable API if 'wrap-data' is set
+                if (this.hasAttribute('wrap-data')) {
+                    const { pageslug, ...rest } = payload;
+                    payload = {
+                        pageslug: pageslug || undefined,
+                        data: rest
+                    };
+                }
+
+                options.body = JSON.stringify(payload);
+                options.headers['Content-Type'] = 'application/json';
+            }
+
+            const response = await fetch(url, options);
+            const result = await response.json();
+
+            if (!response.ok) throw new Error(result.error || `Error ${response.status}`);
+
+            this._response = result;
+            this.dispatchEvent(new CustomEvent('api-success', { detail: result, bubbles: true }));
+        } catch (err) {
+            this._error = err.message;
+            this.dispatchEvent(new CustomEvent('api-error', { detail: err.message, bubbles: true }));
+        } finally {
+            this._loading = false;
+            this.render();
+        }
+    }
+
+    collectFormData() {
+        const data = {};
+        // Find all inputs in the light DOM
+        const inputs = this.querySelectorAll('input, textarea, select');
+        inputs.forEach(input => {
+            if (!input.name || input.hasAttribute('trigger')) return;
+            
+            if (input.type === 'checkbox') data[input.name] = input.checked;
+            else if (input.type === 'radio') {
+                if (input.checked) data[input.name] = input.value;
+            } else {
+                data[input.name] = input.value;
+            }
+        });
+        return data;
+    }
+
+    render() {
+        // We use a slot so your HTML stays visible. 
+        // We only show a small status indicator if loading or error exists.
+        this.shadowRoot.innerHTML = `
+            <style>
+                :host { display: block; position: relative; }
+                .status { font-size: 0.8rem; padding: 5px; margin-bottom: 10px; border-radius: 4px; }
+                .loading { color: #2980b9; background: #e1f5fe; }
+                .error { color: #c0392b; background: #fdf2f2; }
+                .hidden { display: none; }
+            </style>
+            <div class="status ${this._loading ? '' : 'hidden'} loading">Processing...</div>
+            <div class="status ${this._error ? '' : 'hidden'} error">${this._error}</div>
+            <slot></slot>
+        `;
+    }
+}
+
+customElements.define('web-data', WebData);
