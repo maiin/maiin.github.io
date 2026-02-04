@@ -1,6 +1,6 @@
 class WebData extends HTMLElement {
     static get observedAttributes() {
-        return ['url', 'method', 'autoload', 'wrap-data'];
+        return ['url', 'autoload', 'get', 'post', 'patch', 'put', 'delete', 'wrap-data'];
     }
 
     constructor() {
@@ -14,45 +14,58 @@ class WebData extends HTMLElement {
     connectedCallback() {
         this.render();
         
-        // Auto-fetch if the attribute is present
-        if (this.hasAttribute('autoload') && this.getAttribute('url')) {
-            this.sendRequest();
+        // 1. Autoload Logic
+        if (this.hasAttribute('autoload') && this.hasAttribute('get')) {
+            this.sendRequest('GET');
         }
 
-        // Listen for clicks on children with [trigger] attribute
-        this.addEventListener('click', (e) => {
-            const btn = e.target.closest('[trigger]');
-            if (btn) {
-                const method = btn.getAttribute('trigger').toUpperCase();
-                this.sendRequest(method);
+        // 2. Webtrigger Logic (Event Delegation)
+        this.addEventListener('click', async (e) => {
+            const triggerBtn = e.target.closest('[webtrigger]');
+            if (!triggerBtn) return;
+
+            e.preventDefault();
+            
+            // Determine method: looks for method flags on the component
+            // Priority: POST > PATCH > PUT > DELETE > GET
+            const method = ['post', 'patch', 'put', 'delete', 'get']
+                .find(m => this.hasAttribute(m))?.toUpperCase() || 'GET';
+
+            await this.sendRequest(method);
+
+            // 3. Execute JS if webtrigger has a value
+            const callbackCode = triggerBtn.getAttribute('webtrigger');
+            if (callbackCode && !this._error) {
+                try {
+                    // Create a function from the string and execute it
+                    new Function(callbackCode).call(this);
+                } catch (err) {
+                    console.error("Webtrigger callback error:", err);
+                }
             }
         });
     }
 
-    async sendRequest(overrideMethod = null) {
+    async sendRequest(method) {
         const url = this.getAttribute('url');
-        const method = overrideMethod || this.getAttribute('method') || 'GET';
-        
         if (!url) return;
 
         this._loading = true;
         this._error = null;
         this.render();
-        this.dispatchEvent(new CustomEvent('api-start'));
 
         try {
             const options = {
                 method,
-                // CRITICAL: This allows PHP sessions to work
-                credentials: 'include', 
+                credentials: 'include', // Support PHP Sessions
                 headers: { 'Accept': 'application/json' }
             };
 
             if (['POST', 'PATCH', 'PUT'].includes(method)) {
                 let payload = this.collectFormData();
                 
-                // Nest data for Phable API if 'wrap-data' is set
-                if (this.hasAttribute('wrap-data')) {
+                // Nest data to match your PHABLE PHP API structure
+                if (this.hasAttribute('wrap-data') || this.hasAttribute('post') || this.hasAttribute('patch')) {
                     const { pageslug, ...rest } = payload;
                     payload = {
                         pageslug: pageslug || undefined,
@@ -70,10 +83,8 @@ class WebData extends HTMLElement {
             if (!response.ok) throw new Error(result.error || `Error ${response.status}`);
 
             this._response = result;
-            this.dispatchEvent(new CustomEvent('api-success', { detail: result, bubbles: true }));
         } catch (err) {
             this._error = err.message;
-            this.dispatchEvent(new CustomEvent('api-error', { detail: err.message, bubbles: true }));
         } finally {
             this._loading = false;
             this.render();
@@ -82,35 +93,41 @@ class WebData extends HTMLElement {
 
     collectFormData() {
         const data = {};
-        // Find all inputs in the light DOM
-        const inputs = this.querySelectorAll('input, textarea, select');
-        inputs.forEach(input => {
-            if (!input.name || input.hasAttribute('trigger')) return;
-            
+        this.querySelectorAll('input, textarea, select').forEach(input => {
+            if (!input.name || input.hasAttribute('webtrigger')) return;
             if (input.type === 'checkbox') data[input.name] = input.checked;
-            else if (input.type === 'radio') {
-                if (input.checked) data[input.name] = input.value;
-            } else {
-                data[input.name] = input.value;
-            }
+            else if (input.type === 'radio') { if (input.checked) data[input.name] = input.value; }
+            else { data[input.name] = input.value; }
         });
         return data;
     }
 
     render() {
-        // We use a slot so your HTML stays visible. 
-        // We only show a small status indicator if loading or error exists.
         this.shadowRoot.innerHTML = `
             <style>
-                :host { display: block; position: relative; }
-                .status { font-size: 0.8rem; padding: 5px; margin-bottom: 10px; border-radius: 4px; }
-                .loading { color: #2980b9; background: #e1f5fe; }
-                .error { color: #c0392b; background: #fdf2f2; }
+                :host { display: block; font-family: sans-serif; }
+                .msg { padding: 10px; margin: 10px 0; border-radius: 4px; font-size: 14px; }
+                .error { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
+                .loading { color: #2563eb; font-style: italic; }
+                .json-box { 
+                    background: #f8fafc; border: 1px solid #e2e8f0; 
+                    padding: 10px; border-radius: 4px; overflow-x: auto;
+                    font-family: monospace; font-size: 12px; color: #334155;
+                }
                 .hidden { display: none; }
             </style>
-            <div class="status ${this._loading ? '' : 'hidden'} loading">Processing...</div>
-            <div class="status ${this._error ? '' : 'hidden'} error">${this._error}</div>
+            
+            <div class="msg loading ${this._loading ? '' : 'hidden'}">Processing request...</div>
+            <div class="msg error ${this._error ? '' : 'hidden'}">⚠️ ${this._error}</div>
+            
             <slot></slot>
+
+            ${(this._response && !this._loading) ? `
+                <div class="msg success">
+                    <strong>Success:</strong>
+                    <pre class="json-box">${JSON.stringify(this._response, null, 2)}</pre>
+                </div>
+            ` : ''}
         `;
     }
 }
