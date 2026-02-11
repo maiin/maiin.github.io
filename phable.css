@@ -62,6 +62,7 @@ h1, h2, h3, h4, h5, h6{
     margin: 0;
     padding: 0;
     font-weight: 800;
+line-height: 1.5;
 }
 
 h1{
@@ -329,4 +330,62 @@ xmp{
 .buttons li{
     list-style: none;
     margin: 0
+}
+
+/* merged from notes inline styles */
+
+.buttons ul{
+  margin: 0;
+  padding: 0;
+}
+
+.buttons li{
+  display: inline-flex;
+  flex-direction: row-reverse;
+  margin: 0;
+  padding: 0;
+}
+.buttons .button{
+  background: transparent;
+}
+[contenteditable]{
+  border: 0 !important;
+  outline: none !important;
+  width: fit-content
+}
+
+.button:focus{
+  box-shadow: none !important;
+}
+
+.button:focus-visible{
+  box-shadow: 0 0 0 0.2rem rgba(172, 1, 69, 0.3) !important;
+  border: 0 !important;
+  outline: none !important;
+}
+.cards{
+  display: flex;
+  list-style:none;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding-top:20px;
+}
+.card{
+  background: rgba(0, 0, 0, 0.03);
+  padding: 20px;
+  border-radius: 20px;
+  flex: 1;
+  min-width: 200px;
+  transition: var(--transition);
+}
+.cards .cards .card, .add-card{
+  overflow:hidden;
+  display: none;
+}
+
+.block{
+    background: rgb(255, 255, 255);
+    border-radius: 20px;
+    margin: 10px 0;
+    padding: 20px 40px;
 }
